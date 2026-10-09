@@ -1,0 +1,1809 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Glassic</title>
+  <style>
+    /* ── Reset ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Root variables ── */
+    :root {
+      --accent: #1DB954;
+      --radius: 18px;
+      --blur: 24px;
+      --transition: 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    /* ── Body — transparent for OBS ── */
+    body {
+      background: transparent;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── Custom Sleek Integrated Scrollbar ── */
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 99px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 99px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      transition: background 0.2s ease;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--accent);
+    }
+
+    /* ── Widget card ── */
+    .widget {
+      -webkit-app-region: drag;
+      user-select: none;
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 22px 14px 18px;
+      border-radius: var(--radius);
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      cursor: default;
+      transform: translateY(0);
+      opacity: 1;
+      transition: transform var(--transition), opacity var(--transition), height 0.35s ease, padding 0.35s ease;
+      isolation: isolate;
+    }
+
+    /* Expand widget container when a modal is active and hide background elements */
+    .widget.mode-modal {
+      max-width: none !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      border: none !important;
+      padding: 0 !important;
+      overflow: visible !important;
+    }
+    .widget.mode-modal .art-wrapper,
+    .widget.mode-modal .info,
+    .widget.mode-modal .eq,
+    .widget.mode-modal .session-arrows,
+    .widget.mode-modal .widget__bg,
+    .widget.mode-modal .widget__art-bg,
+    .widget.mode-modal .widget__glow {
+      display: none !important;
+      opacity: 0 !important;
+    }
+
+    /* Disable window drag on modals and interactive UI elements so clicks work */
+    .settings-overlay, .onboard-modal, .update-modal, .confirm-modal,
+    .controls-bar, .session-arrows, button, input, select, label, .switch, .slider {
+      -webkit-app-region: no-drag !important;
+    }
+
+    .widget.visible:not(.mode-modal) {
+      transform: scale(var(--widget-scale, 1));
+      transform-origin: center center;
+      opacity: 1;
+    }
+
+    /* Glassmorphism background */
+    .widget__bg {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: rgba(12, 12, 14, 0.78);
+      backdrop-filter: blur(var(--blur)) saturate(180%);
+      -webkit-backdrop-filter: blur(var(--blur)) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.08);
+      transition: background 0.6s ease;
+      z-index: 0;
+    }
+
+    /* Colorful mode overlay */
+    .widget__art-bg {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      opacity: 0;
+      transition: background-image 1s ease, opacity 0.6s ease;
+      filter: none;
+      z-index: -1;
+    }
+
+    body.colorful-mode .widget__art-bg {
+      opacity: 0.8;
+    }
+
+    body.colorful-mode .widget__bg {
+      background: rgba(12, 12, 14, 0.25);
+    }
+
+    /* Glassy Mode (Ctrl+G) */
+    body.glassy-mode .widget__bg {
+      background: rgba(40, 40, 45, 0.55);
+      backdrop-filter: blur(45px) saturate(220%);
+      -webkit-backdrop-filter: blur(45px) saturate(220%);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: none !important;
+    }
+
+    body.glassy-mode.colorful-mode .widget__bg {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: none !important;
+    }
+
+    /* Color bleed from album art */
+    .widget__glow {
+      display: none !important;
+      opacity: 0 !important;
+    }
+
+    .widget__glow.active { opacity: 0.35; }
+    body.colorful-mode .widget__glow.active { opacity: 0; } /* Hide normal glow when colorful mode is active */
+
+    /* ── Album Art ── */
+    .art-wrapper {
+      position: relative;
+      flex-shrink: 0;
+      z-index: 1;
+      margin-left: 2px;
+      overflow: visible;
+    }
+
+    .art {
+      width: 68px;
+      height: 68px;
+      border-radius: 10px;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.4s ease;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+
+    .art.playing {
+      transform: scale(1.05);
+    }
+
+    .art.paused {
+      transform: scale(1);
+    }
+
+    /* ── Info ── */
+    .info {
+      flex: 1;
+      min-width: 0;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .info__source {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 2px;
+    }
+
+    .source-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+      animation: pulse 2s ease infinite;
+    }
+
+    .source-dot.paused { animation: none; opacity: 0.5; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.6; transform: scale(0.85); }
+    }
+
+    .source-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      white-space: nowrap;
+    }
+
+    .source-icon {
+      width: 12px; height: 12px;
+      flex-shrink: 0;
+    }
+
+    .info__title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.3;
+    }
+
+    .info__artist {
+      font-size: 12px;
+      font-weight: 400;
+      color: rgba(255,255,255,0.6);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Scrolling text for long titles */
+    .info__title.scroll .scroll-inner,
+    .info__artist.scroll .scroll-inner {
+      display: inline-block;
+      white-space: nowrap;
+      animation: marquee 12s linear infinite;
+      padding-right: 60px;
+    }
+
+    @keyframes marquee {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    /* ── Progress bar ── */
+    .progress-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .progress-bar {
+      flex: 1;
+      height: 3px;
+      border-radius: 99px;
+      background: rgba(255,255,255,0.12);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: var(--accent);
+      transition: width 1s linear;
+      width: 0%;
+    }
+
+    .time {
+      font-size: 10px;
+      color: rgba(255,255,255,0.35);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    /* ── Equalizer bars (playing indicator) ── */
+    .eq {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 14px;
+      margin-left: auto;
+      z-index: 1;
+      flex-shrink: 0;
+    }
+
+    .eq span {
+      width: 3px;
+      border-radius: 2px;
+      background: var(--accent);
+      animation: eq-bar 0.8s ease infinite alternate;
+    }
+
+    .eq span:nth-child(1) { animation-delay: 0s;    height: 100%; }
+    .eq span:nth-child(2) { animation-delay: 0.15s; height: 60%; }
+    .eq span:nth-child(3) { animation-delay: 0.3s;  height: 80%; }
+    .eq span:nth-child(4) { animation-delay: 0.1s;  height: 40%; }
+
+    @keyframes eq-bar {
+      from { transform: scaleY(0.3); }
+      to   { transform: scaleY(1); }
+    }
+
+    .eq.paused span { animation: none; transform: scaleY(0.3); }
+    .eq.hidden { display: none; }
+
+    /* ── Source SVG icons ── */
+    .icon-spotify  { color: #1DB954; }
+    .icon-youtube  { color: #FF0000; }
+    .icon-twitch   { color: #9146FF; }
+    .icon-local    { color: #5B9BD5; }
+    .icon-browser  { color: #4285F4; }
+    .icon-soundcloud { color: #FF5500; }
+    .icon-deezer   { color: #00C7F2; }
+    .icon-amazon   { color: #FF9900; }
+
+    /* ── Nothing playing ── */
+    .widget.empty { display: none !important; }
+
+    /* ── Theme variants via URL ?theme= ── */
+    body.theme-minimal .widget__bg {
+      background: rgba(0,0,0,0.6);
+    }
+    body.theme-light .widget__bg {
+      background: rgba(255,255,255,0.85);
+    }
+    body.theme-light .info__title { color: #111; }
+    body.theme-light .info__artist { color: #555; }
+    body.theme-light .time { color: #888; }
+    body.theme-light .progress-bar { background: rgba(0,0,0,0.12); }
+
+    /* ── Position variants ── */
+    body.pos-top-left    { align-items: flex-start; justify-content: flex-start; }
+    body.pos-top-right   { align-items: flex-start; justify-content: flex-end; }
+    body.pos-bottom-right { align-items: flex-end; justify-content: flex-end; }
+    body.pos-center      { align-items: center; justify-content: center; }
+
+    /* ── Fade transition ── */
+    .widget { transition: transform var(--transition), opacity var(--transition); }
+    /* ── Vinyl Mode ── */
+    body.vinyl-mode .art {
+      border-radius: 50% !important;
+    }
+    body.vinyl-mode .art.playing {
+      animation: vinylRotate 8s linear infinite !important;
+    }
+    @keyframes vinylRotate {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+    body.vinyl-mode .art-wrapper::after {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: rgba(15, 15, 15, 0.95);
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      z-index: 2;
+      pointer-events: none;
+      box-shadow: inset 0 0 3px rgba(0,0,0,0.8);
+    }
+
+    /* ── Playback Controls Bar ── */
+    .controls-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 0 10px;
+      height: 0;
+      opacity: 0;
+      overflow: hidden;
+      border-radius: 99px;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid transparent;
+      margin-top: 0;
+      pointer-events: none;
+      transition: height 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                  opacity 0.25s ease,
+                  margin-top 0.35s ease,
+                  padding 0.35s ease,
+                  border-color 0.35s ease;
+      z-index: 5;
+    }
+    .ctrl-btn {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.85);
+      cursor: pointer;
+      font-size: 12px;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: color 0.2s, transform 0.15s ease;
+      display: flex; align-items: center; justify-content: center;
+      line-height: 1;
+    }
+    .ctrl-btn:hover {
+      color: var(--accent);
+      transform: scale(1.18);
+    }
+    .ctrl-btn:active { transform: scale(0.92); }
+
+    /* Control Visibility Modes */
+    body.ctrl-off .controls-bar { display: none !important; }
+    body.ctrl-hover .controls-bar {
+      height: 0;
+      opacity: 0;
+      margin-top: 0;
+      padding: 0 10px;
+      border-color: transparent;
+      pointer-events: none;
+    }
+    body.ctrl-hover .widget:hover .controls-bar,
+    body.ctrl-hover .controls-bar:hover,
+    body.ctrl-hover .art-wrapper:hover ~ .info .controls-bar {
+      height: 28px;
+      opacity: 1;
+      margin-top: 6px;
+      padding: 4px 10px;
+      border-color: rgba(255,255,255,0.1);
+      pointer-events: auto;
+    }
+    body.ctrl-always .controls-bar {
+      height: 28px;
+      opacity: 1;
+      margin-top: 6px;
+      padding: 4px 10px;
+      border-color: rgba(255,255,255,0.1);
+      pointer-events: auto;
+    }
+
+    /* ── Session Selector Arrows (Up/Down) ── */
+    .session-arrows {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      z-index: 10;
+    }
+    .session-arrows.hidden {
+      display: none !important;
+    }
+    .widget:hover .session-arrows:not(.hidden) {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .arrow-btn {
+      background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #fff;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      font-size: 10px;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .arrow-btn:hover {
+      background: var(--accent);
+      color: #000;
+      transform: scale(1.15);
+    }
+
+    /* ── Settings Gear Icon Button (Shown on hover) ── */
+    .btn-settings-gear {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 11px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease, transform 0.2s ease, background 0.2s ease;
+      z-index: 15;
+      -webkit-app-region: no-drag !important;
+    }
+    .widget.is-hovered .btn-settings-gear,
+    .widget:hover .btn-settings-gear {
+      opacity: 0.85;
+      pointer-events: auto;
+    }
+    .btn-settings-gear:hover {
+      opacity: 1;
+      background: var(--accent);
+      color: #000;
+      transform: scale(1.15) rotate(45deg);
+    }
+    .widget.mode-modal .btn-settings-gear {
+      display: none !important;
+    }
+
+    /* ── Toggle Switch Component ── */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 36px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: rgba(255, 255, 255, 0.2);
+      transition: 0.3s;
+      border-radius: 20px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.3s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: var(--accent);
+    }
+    input:checked + .slider:before {
+      transform: translateX(16px);
+      background-color: #000;
+    }
+
+    /* ── Settings Panel (F5) — Large Centered Modal ── */
+    .settings-overlay {
+      position: fixed;
+      inset: 16px;
+      border-radius: 18px;
+      background: rgba(18, 18, 24, 0.96);
+      backdrop-filter: blur(40px) saturate(200%);
+      -webkit-backdrop-filter: blur(40px) saturate(200%);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 20px 50px rgba(0, 0, 0, 0.6);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 18px;
+      gap: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.92);
+      transition: opacity 0.35s ease, transform 0.35s ease;
+      color: #fff;
+      overflow: hidden;
+    }
+    .settings-scroll-body {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-right: 8px;
+      margin-right: 2px;
+    }
+    .settings-overlay.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: scale(1);
+    }
+    .settings-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--accent);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding-bottom: 8px;
+    }
+    .settings-close {
+      cursor: pointer;
+      background: rgba(255,255,255,0.1);
+      border: none;
+      color: #fff;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+      transition: background 0.2s;
+    }
+    .settings-close:hover { background: rgba(255,255,255,0.25); }
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      font-size: 11px;
+    }
+    .setting-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255,255,255,0.06);
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.08);
+      cursor: pointer;
+      user-select: none;
+    }
+    .setting-item:hover {
+      background: rgba(255,255,255,0.1);
+    }
+    .setting-select {
+      background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #fff;
+      font-size: 11px;
+      padding: 3px 6px;
+      border-radius: 4px;
+      outline: none;
+    }
+    .web-config-box {
+      background: rgba(255,255,255,0.04);
+      border: 1px dashed rgba(255,255,255,0.15);
+      border-radius: 8px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 11px;
+    }
+    .web-url-input {
+      background: rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: var(--accent);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 10px;
+      width: 100%;
+    }
+    .copy-btn {
+      background: var(--accent);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 10px;
+      align-self: flex-end;
+      transition: transform 0.15s;
+    }
+    .copy-btn:hover { transform: scale(1.05); }
+
+    .settings-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: auto;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+    .btn-reset {
+      background: rgba(255, 71, 87, 0.15);
+      border: 1px solid rgba(255, 71, 87, 0.3);
+      color: #ff4757;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+    }
+    .btn-reset:hover {
+      background: rgba(255, 71, 87, 0.3);
+      transform: scale(1.05);
+    }
+
+    /* ── Confirmation Modal ── */
+    .confirm-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+    .confirm-modal.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .confirm-box {
+      background: rgba(30, 30, 38, 0.95);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 14px;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 280px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    }
+    .confirm-title { font-size: 13px; font-weight: 700; color: #fff; }
+    .confirm-msg { font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.4; }
+    .confirm-actions { display: flex; gap: 8px; justify-content: center; }
+    .confirm-btn {
+      flex: 1;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: none;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .confirm-btn.cancel { background: rgba(255,255,255,0.15); color: #fff; }
+    .confirm-btn.cancel:hover { background: rgba(255,255,255,0.25); }
+    /* ── Onboarding & Update Modals — Centered Dialog Cards ── */
+    .onboard-modal, .update-modal {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%) scale(0.92);
+      width: 620px;
+      max-width: 92vw;
+      max-height: 88vh;
+      border-radius: 20px;
+      background: rgba(18, 18, 24, 0.96);
+      backdrop-filter: blur(40px) saturate(200%);
+      -webkit-backdrop-filter: blur(40px) saturate(200%);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 20px 60px rgba(0, 0, 0, 0.75);
+      z-index: 1200;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 28px;
+      gap: 14px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease, transform 0.35s ease;
+      color: #fff;
+      overflow-y: auto;
+    }
+    .onboard-modal.visible, .update-modal.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    .onboard-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .onboard-subtitle {
+      font-size: 13px;
+      color: rgba(255,255,255,0.7);
+      line-height: 1.5;
+    }
+    .btn-action {
+      background: var(--accent);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 10px 22px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 13px;
+      align-self: flex-end;
+      margin-top: auto;
+      transition: transform 0.15s, background 0.2s;
+    }
+    .btn-action:hover {
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+<body>
+
+<div class="widget visible" id="widget">
+  <div class="widget__art-bg" id="artBg"></div>
+  <div class="widget__glow" id="glow"></div>
+  <div class="widget__bg"></div>
+
+  <!-- Session Selector Arrows (Up/Down) -->
+  <div class="session-arrows" id="sessionArrows">
+    <button class="arrow-btn" id="btnSessionUp" title="Previous session">▲</button>
+    <button class="arrow-btn" id="btnSessionDown" title="Next session">▼</button>
+  </div>
+
+  <!-- Visual Settings Gear Icon Button -->
+  <button class="btn-settings-gear" id="btnSettingsGear" title="Settings">⚙️</button>
+
+  <!-- Settings Overlay Modal -->
+  <div class="settings-overlay" id="settingsOverlay">
+    <div class="settings-header">
+      <span id="settingsTitleText">⚙️ Glassic Settings</span>
+      <button class="settings-close" id="closeSettingsBtn">&times;</button>
+    </div>
+    
+    <div class="settings-scroll-body">
+      <div class="settings-grid">
+        <label class="setting-item">
+          <span id="lblVinyl">💿 Spinning Vinyl</span>
+          <span class="switch">
+            <input type="checkbox" id="cfgVinyl">
+            <span class="slider"></span>
+          </span>
+        </label>
+        <label class="setting-item">
+          <span id="lblColor">🌈 Cover Colors</span>
+          <span class="switch">
+            <input type="checkbox" id="cfgColor">
+            <span class="slider"></span>
+          </span>
+        </label>
+        <label class="setting-item">
+          <span id="lblGlassy">✨ Effet Glassy</span>
+          <span class="switch">
+            <input type="checkbox" id="cfgGlassy">
+            <span class="slider"></span>
+          </span>
+        </label>
+        <label class="setting-item">
+          <span id="lblTop">📌 Always on Top</span>
+          <span class="switch">
+            <input type="checkbox" id="cfgAlwaysOnTop">
+            <span class="slider"></span>
+          </span>
+        </label>
+
+        <!-- Widget Scale Slider (50% - 200%) -->
+        <label class="setting-item" style="grid-column: span 2; display: flex; flex-direction: column; gap: 6px; align-items: stretch;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span id="lblScale">🔍 Widget Size / Taille</span>
+            <span id="lblScaleVal" style="font-weight: 700; color: var(--accent);">100%</span>
+          </div>
+          <input type="range" id="cfgScale" min="50" max="200" value="100" step="5" style="width: 100%; cursor: pointer; accent-color: var(--accent);" />
+        </label>
+
+        <!-- Settings Keybind / Shortcut Changer -->
+        <label class="setting-item" style="grid-column: span 2; display: flex; justify-content: space-between; align-items: center;">
+          <span id="lblKeybind">⌨️ Settings Keybind / Raccourci</span>
+          <button id="cfgKeybindBtn" class="setting-select" style="cursor: pointer; padding: 4px 12px; font-weight: 700;">F5</button>
+        </label>
+
+        <label class="setting-item" style="grid-column: span 2;">
+          <span id="lblLang">🗣️ Language / Langue</span>
+          <select class="setting-select" id="cfgLang">
+            <option value="en">English</option>
+            <option value="fr">Français</option>
+          </select>
+        </label>
+        <label class="setting-item" style="grid-column: span 2;">
+          <span id="lblCtrl">🎮 Playback Controls</span>
+          <select class="setting-select" id="cfgControlsMode">
+            <option value="hover" id="optCtrlHover">On Hover</option>
+            <option value="always" id="optCtrlAlways">Always On</option>
+            <option value="off" id="optCtrlOff">Disabled</option>
+          </select>
+        </label>
+        <label class="setting-item" style="grid-column: span 2;">
+          <span id="lblWeb">🌐 Web / OBS Server (Port 3000)</span>
+          <span class="switch">
+            <input type="checkbox" id="cfgWebServer">
+            <span class="slider"></span>
+          </span>
+        </label>
+      </div>
+
+      <!-- Web Server / OBS Configurator -->
+      <div class="web-config-box" id="webConfigBox" style="display: none;">
+        <div style="font-weight:700; color: var(--accent);" id="webUrlLabel">🌐 OBS / Browser Widget Link:</div>
+        <input type="text" class="web-url-input" id="webUrlInput" readonly value="http://localhost:3000/widget.html" />
+        <button class="copy-btn" id="btnCopyWebUrl">Copy Link</button>
+      </div>
+    </div>
+
+    <div class="settings-footer">
+      <button class="btn-reset" id="btnResetSettings">🔄 Reset Defaults</button>
+    </div>
+  </div>
+
+  <!-- Onboarding Wizard Modal (First Launch) -->
+  <div class="onboard-modal" id="onboardModal">
+    <div class="onboard-title" id="onboardTitle">✨ Welcome to Glassic</div>
+    <div class="onboard-subtitle" id="onboardSub">Set up your preferences for your first launch:</div>
+    <div class="settings-grid" style="margin-top: 6px;">
+      <label class="setting-item" style="grid-column: span 2;">
+        <span id="onboardLangLabel">🌐 Language / Langue</span>
+        <select class="setting-select" id="onboardLang">
+          <option value="en">English</option>
+          <option value="fr">Français</option>
+        </select>
+      </label>
+      <label class="setting-item" style="grid-column: span 2;">
+        <span id="onboardShortcutLabel">🖥️ Create Desktop Shortcut</span>
+        <span class="switch">
+          <input type="checkbox" id="onboardShortcut" checked>
+          <span class="slider"></span>
+        </span>
+      </label>
+      <label class="setting-item" style="grid-column: span 2;">
+        <span id="onboardStartupLabel">🚀 Launch on Windows Startup</span>
+        <span class="switch">
+          <input type="checkbox" id="onboardStartup" checked>
+          <span class="slider"></span>
+        </span>
+      </label>
+    </div>
+    <button class="btn-action" id="btnFinishOnboard">Start Glassic 🚀</button>
+  </div>
+
+  <!-- Update Available Modal -->
+  <div class="update-modal" id="updateModal">
+    <div class="onboard-title" id="updateTitle">🚀 New Update Available!</div>
+    <div class="onboard-subtitle" id="updateMsgText">A new version of Glassic (v1.1.0) is ready to install. All your settings and preferences will be preserved!</div>
+    <div class="confirm-actions" style="margin-top: auto;">
+      <button class="confirm-btn cancel" id="btnSkipUpdate">Later</button>
+      <button class="confirm-btn danger" id="btnConfirmUpdate" style="background: var(--accent); color: #000;">Update Now</button>
+    </div>
+  </div>
+
+  <!-- Reset Confirmation Modal -->
+  <div class="confirm-modal" id="resetConfirmModal">
+    <div class="confirm-box">
+      <div class="confirm-title">Reset Settings</div>
+      <div class="confirm-msg">Are you sure you want to reset all settings to default values?</div>
+      <div class="confirm-actions">
+        <button class="confirm-btn cancel" id="btnCancelReset">Cancel</button>
+        <button class="confirm-btn danger" id="btnConfirmReset">Yes, Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="art-wrapper" id="artWrapper">
+    <img class="art" id="albumArt" src="" alt="Album Art" />
+  </div>
+
+  <div class="info">
+    <div class="info__source">
+      <div class="source-dot" id="sourceDot"></div>
+      <svg class="source-icon" id="sourceIcon" viewBox="0 0 24 24" fill="currentColor"></svg>
+      <span class="source-label" id="sourceLabel">Spotify</span>
+    </div>
+    <div class="info__title" id="titleEl"><span class="scroll-inner" id="titleInner">–</span></div>
+    <div class="info__artist" id="artistEl"><span class="scroll-inner" id="artistInner">–</span></div>
+    
+    <!-- Playback Controls Bar -->
+    <div class="controls-bar" id="controlsBar">
+      <button class="ctrl-btn" id="btnPrev" title="Précédent">⏮</button>
+      <button class="ctrl-btn" id="btnPlayPause" title="Lecture / Pause">⏯</button>
+      <button class="ctrl-btn" id="btnNext" title="Suivant">⏭</button>
+      <button class="ctrl-btn" id="btnVolDown" title="Volume -">🔉</button>
+      <button class="ctrl-btn" id="btnVolUp" title="Volume +">🔊</button>
+    </div>
+
+    <div class="progress-wrap">
+      <span class="time" id="timePos">0:00</span>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <span class="time" id="timeDur">0:00</span>
+    </div>
+  </div>
+
+  <div class="eq" id="eq">
+    <span></span><span></span><span></span><span></span>
+  </div>
+
+  <div class="session-arrows hidden" id="sessionArrows">
+    <button class="arrow-btn" id="btnSessionUp" title="Media précédent">▲</button>
+    <button class="arrow-btn" id="btnSessionDown" title="Media suivant">▼</button>
+  </div>
+</div>
+
+<script>
+// ── Source icons (inline SVG paths) ──────────────────────────────────────────
+const ICONS = {
+  tiktok: `<path d="M12.525.02c1.31-.02 2.61-.01 3.91.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93v7.2c0 2.2-1.15 4.25-3 5.4-1.85 1.15-4.2 1.4-6.2.7-2-.7-3.6-2.2-4.35-4.2-.75-2-.5-4.3.7-6.2 1.2-1.9 3.25-3 5.45-3 .3 0 .6.03.9.08v4.06c-1.3-.3-2.65.1-3.6 1-.95.9-1.35 2.25-1 3.55.35 1.3 1.45 2.3 2.75 2.5 1.3.2 2.65-.2 3.55-1.1.9-.9 1.35-2.2 1.25-3.5V.02z"/>`,
+  spotify: `<path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>`,
+  youtube: `<path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/>`,
+  twitch: `<path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/>`,
+  music: `<path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>`,
+  soundcloud: `<path d="M1.175 12.225c-.042 0-.083.006-.124.011v.004c-.104 0-.187.083-.187.188 0 .104.083.188.188.188h.124v-.391zm0 .617H.875c-.104 0-.188-.083-.188-.188 0-.104.083-.188.188-.188h.3V12.842zm21.65-1.692c-.896-2.729-3.407-4.708-6.379-4.708-1.867 0-3.563.715-4.837 1.887-.4-1.871-2.067-3.279-4.076-3.279-2.298 0-4.163 1.865-4.163 4.163 0 .276.027.546.079.807C1.575 9.871 0 11.346 0 13.163c0 1.946 1.579 3.525 3.525 3.525h15.95c2.208 0 4-1.792 4-4 0-1.875-1.292-3.45-3.025-3.888.25-.525.4-1.112.4-1.737 0-.588-.125-1.146-.35-1.65l-.675.012z"/>`,
+  deezer: `<path d="M18.81 12.37v1.27h3.82v-1.27zm-4.86 0v1.27h3.82v-1.27zm-4.86 0v1.27h3.82v-1.27zm-4.87 0v1.27h3.82v-1.27zM.18 12.37v1.27H4v-1.27zM18.81 10.07v1.27h3.82v-1.27zm-4.86 0v1.27h3.82v-1.27zm-4.86 0v1.27h3.82v-1.27zm4.86-2.29v1.27h3.82V7.78zm-4.86 0v1.27h3.82V7.78zm9.72 2.29v1.27h3.82v-1.27zm-9.72-4.59v1.27h3.82V5.48zm4.86 2.3V6.51h3.82V5.48h-3.82v1.03z"/>`,
+  amazon: `<path d="M13.958 10.09c0 1.232.029 2.256-.591 3.351-.502.891-1.301 1.438-2.186 1.438-1.214 0-1.922-.924-1.922-2.292 0-2.692 2.415-3.182 4.7-3.182v.685zm3.186 7.705a.659.659 0 0 1-.748.074c-1.051-.872-1.239-1.276-1.814-2.106-1.734 1.768-2.962 2.297-5.209 2.297-2.66 0-4.731-1.641-4.731-4.925 0-2.565 1.391-4.309 3.37-5.164 1.715-.754 4.11-.891 5.942-1.099v-.41c0-.753.06-1.642-.384-2.294-.385-.578-1.124-.816-1.776-.816-1.206 0-2.28.618-2.54 1.899-.054.285-.261.567-.548.582l-3.061-.333c-.259-.056-.548-.266-.472-.66.703-3.71 4.057-4.826 7.063-4.826 1.537 0 3.546.41 4.758 1.574 1.538 1.436 1.39 3.352 1.39 5.44v4.923c0 1.481.616 2.131 1.193 2.932.204.287.247.63-.01.842l-2.423 2.07zm3.409 1.963c-.216.178-.528.191-.774.072-1.086-.9-1.283-1.322-1.879-2.174-1.796 1.831-3.073 2.381-5.411 2.381-2.764 0-4.913-1.703-4.913-5.112 0-2.664 1.445-4.472 3.5-5.361 1.778-.782 4.264-.925 6.169-1.14v-.425c0-.782.062-1.703-.399-2.381-.399-.599-1.167-.848-1.844-.848-1.252 0-2.367.642-2.64 1.974-.056.296-.27.589-.569.604l-3.18-.346c-.269-.059-.568-.276-.49-.685.729-3.851 4.212-5.009 7.332-5.009 1.595 0 3.68.425 4.94 1.633 1.596 1.491 1.442 3.477 1.442 5.648v5.109c0 1.536.64 2.212 1.238 3.045.212.297.257.653-.01.874l-2.513 2.148zm-14.957 1.543c-5.036-3.72-7.63-7.437-7.63-14.5 0-4.63 1.78-8.913 5.36-11.826C5.24 1.547 7.935.5 10.5.5c3.93 0 7.583 1.547 10.272 4.319a14.948 14.948 0 0 1 4.229 9.671c0 2.97-.811 5.768-2.394 8.213l-1.474-.96a13.117 13.117 0 0 0 2.111-7.253c0-3.623-1.391-7.034-3.917-9.583A13.154 13.154 0 0 0 10.5 2.26c-2.294 0-4.712.854-6.66 2.339-2.924 2.251-4.55 5.647-4.55 9.401 0 6.277 2.261 9.523 6.916 12.932l-1.09 1.37z"/>`,
+  browser: `<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>`,
+  tidal: `<path d="M12.012 3.992L8.008 7.996 4.004 3.992 0 7.996l4.004 4.004 4.004-4.004 4.004 4.004 4.004-4.004L12.012 3.992zm4.004 4.004l-4.004 4.004 4.004 4.004 4.004-4.004-4.004-4.004z"/>`,
+};
+
+// ── Config from URL params ────────────────────────────────────────────────────
+const params = new URLSearchParams(window.location.search);
+const THEME    = params.get('theme') || 'dark';
+const POSITION = params.get('position') || 'bottom-left';
+const VINYL    = params.get('vinyl') !== 'false'; // default true
+const HIDE_WHEN_PAUSED = params.get('hide_paused') === 'true';
+const HIDE_WHEN_NOTHING = params.get('hide_nothing') === 'true'; // default false: always show idle card on launch
+const WS_URL   = `ws://${location.host}/ws`;
+
+// Apply theme & position classes
+if (THEME !== 'dark') document.body.classList.add(`theme-${THEME}`);
+if (POSITION) document.body.classList.add(`pos-${POSITION}`);
+
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+const widget      = document.getElementById('widget');
+const glow        = document.getElementById('glow');
+const albumArt    = document.getElementById('albumArt');
+const titleEl     = document.getElementById('titleEl');
+const titleInner  = document.getElementById('titleInner');
+const artistEl    = document.getElementById('artistEl');
+const artistInner = document.getElementById('artistInner');
+const progressFill = document.getElementById('progressFill');
+const timePos     = document.getElementById('timePos');
+const timeDur     = document.getElementById('timeDur');
+const sourceDot   = document.getElementById('sourceDot');
+const sourceIcon  = document.getElementById('sourceIcon');
+const sourceLabel = document.getElementById('sourceLabel');
+const eq          = document.getElementById('eq');
+const artWrapper  = document.getElementById('artWrapper');
+const sessionArrows  = document.getElementById('sessionArrows');
+const btnSessionUp   = document.getElementById('btnSessionUp');
+const btnSessionDown = document.getElementById('btnSessionDown');
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let currentMedia  = null;
+let progressTimer = null;
+let localPosition = 0;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function formatTime(secs) {
+  if (!secs || isNaN(secs)) return '0:00';
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+function setAccentColor(color) {
+  document.documentElement.style.setProperty('--accent', color || '#1DB954');
+}
+
+function setScrolling(el, inner, text) {
+  inner.textContent = text + '  ';
+  // Check if text overflows
+  const parentW = el.parentElement.offsetWidth;
+  const textW = inner.scrollWidth;
+  if (textW > parentW) {
+    // Duplicate for seamless loop
+    inner.textContent = text + '     ' + text + '     ';
+    el.classList.add('scroll');
+  } else {
+    el.classList.remove('scroll');
+    inner.textContent = text;
+  }
+}
+
+// ── Color extraction from image ───────────────────────────────────────────────
+function extractDominantColor(imgEl) {
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 8; canvas.height = 8;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(imgEl, 0, 0, 8, 8);
+    const data = ctx.getImageData(0, 0, 8, 8).data;
+    let r = 0, g = 0, b = 0, count = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      r += data[i]; g += data[i+1]; b += data[i+2]; count++;
+    }
+    r = Math.round(r / count);
+    g = Math.round(g / count);
+    b = Math.round(b / count);
+    return `rgb(${r},${g},${b})`;
+  } catch { return null; }
+}
+
+// ── Progress ticker ───────────────────────────────────────────────────────────
+function startProgressTicker(position, duration, isPlaying) {
+  if (progressTimer) clearInterval(progressTimer);
+  localPosition = position;
+
+  if (!isPlaying || !duration) {
+    updateProgress(position, duration);
+    return;
+  }
+
+  updateProgress(localPosition, duration);
+
+  progressTimer = setInterval(() => {
+    localPosition = Math.min(localPosition + 1, duration);
+    updateProgress(localPosition, duration);
+    if (localPosition >= duration) clearInterval(progressTimer);
+  }, 1000);
+}
+
+function updateProgress(pos, dur) {
+  timePos.textContent = formatTime(pos);
+  timeDur.textContent = dur ? formatTime(dur) : '';
+  const pct = dur ? Math.min((pos / dur) * 100, 100) : 0;
+  progressFill.style.width = `${pct}%`;
+}
+
+// ── Render media ──────────────────────────────────────────────────────────────
+function renderMedia(media) {
+  if (!media || !media.title) {
+    document.title = 'Glassic';
+    hideWidget();
+    return;
+  }
+
+  document.title = `Glassic (${media.title})`;
+
+  if (HIDE_WHEN_PAUSED && media.status === 'paused') {
+    hideWidget();
+    return;
+  }
+
+  const isPlaying = media.status === 'playing';
+  const source = media.source || 'unknown';
+  const meta = media.sourceMeta || { icon: 'music', color: '#888', label: source };
+
+  // Accent color from source
+  setAccentColor(meta.color);
+
+  // Source indicator
+  sourceDot.style.background = meta.color;
+  sourceDot.className = `source-dot${isPlaying ? '' : ' paused'}`;
+  sourceLabel.textContent = meta.label;
+  sourceLabel.style.color = meta.color;
+
+  // Source icon
+  const iconPath = ICONS[meta.icon] || ICONS.music;
+  sourceIcon.innerHTML = iconPath;
+  sourceIcon.className = `source-icon icon-${meta.icon}`;
+  sourceIcon.style.color = meta.color;
+
+  // Title & Artist (with scrolling for long text)
+  setTimeout(() => {
+    setScrolling(titleEl, titleInner, media.title || '—');
+    setScrolling(artistEl, artistInner, [media.artist, media.album].filter(Boolean).join(' · ') || '—');
+  }, 50);
+
+  // Album art
+  const prevSrc = albumArt.src;
+  if (media.thumbnail && media.thumbnail !== prevSrc) {
+    albumArt.onload = () => {
+      // Extract color and update glow
+      const color = extractDominantColor(albumArt);
+      if (color) {
+        glow.style.background = `radial-gradient(ellipse at center, ${color}, transparent)`;
+        glow.classList.add('active');
+      }
+      document.getElementById('artBg').style.backgroundImage = `url("${media.thumbnail}")`;
+    };
+    albumArt.onerror = () => {
+      albumArt.src = makeDefaultArt(meta.color);
+      document.getElementById('artBg').style.backgroundImage = 'none';
+    };
+    albumArt.crossOrigin = 'anonymous';
+    albumArt.src = media.thumbnail;
+  } else if (!media.thumbnail) {
+    albumArt.src = makeDefaultArt(meta.color);
+    glow.classList.remove('active');
+    document.getElementById('artBg').style.backgroundImage = 'none';
+  }
+
+  // Vinyl rotation
+  if (VINYL) {
+    if (isPlaying) {
+      albumArt.classList.add('playing');
+    } else {
+      albumArt.classList.remove('playing');
+    }
+  }
+
+  // EQ bars
+  if (isPlaying) {
+    eq.classList.remove('paused', 'hidden');
+  } else {
+    eq.classList.add('paused');
+  }
+
+  // Progress
+  startProgressTicker(media.position || 0, media.duration || 0, isPlaying);
+
+  // Session selector arrows logic
+  updateSessionArrows(media);
+
+  // Show widget
+  showWidget();
+}
+
+function updateSessionArrows(media) {
+  if (!sessionArrows) return;
+  const total = media && media.totalSessions ? media.totalSessions : 1;
+  const index = media && typeof media.sessionIndex === 'number' ? media.sessionIndex : 0;
+
+  if (total <= 1) {
+    sessionArrows.classList.add('hidden');
+    return;
+  }
+
+  sessionArrows.classList.remove('hidden');
+
+  if (total === 2) {
+    if (index === 0) {
+      btnSessionUp.style.display = 'none';
+      btnSessionDown.style.display = 'flex';
+    } else {
+      btnSessionUp.style.display = 'flex';
+      btnSessionDown.style.display = 'none';
+    }
+  } else {
+    btnSessionUp.style.display = 'flex';
+    btnSessionDown.style.display = 'flex';
+  }
+}
+
+function makeDefaultArt(color) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="68" height="68" viewBox="0 0 68 68">
+    <rect width="68" height="68" fill="${color || '#333'}" rx="10"/>
+    <circle cx="34" cy="34" r="16" fill="rgba(0,0,0,0.4)"/>
+    <circle cx="34" cy="34" r="6" fill="rgba(255,255,255,0.15)"/>
+    <path d="M28 26v16l14-8z" fill="rgba(255,255,255,0.5)"/>
+  </svg>`;
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
+}
+
+function showWidget() {
+  widget.classList.remove('empty', 'fade-out');
+  requestAnimationFrame(() => widget.classList.add('visible'));
+}
+
+function hideWidget() {
+  if (!HIDE_WHEN_NOTHING) {
+    // Show "nothing playing" state
+    widget.classList.remove('visible', 'empty');
+    titleInner.textContent = 'Nothing playing';
+    artistInner.textContent = '—';
+    albumArt.src = makeDefaultArt('#444');
+    albumArt.classList.remove('playing');
+    eq.classList.add('hidden');
+    progressFill.style.width = '0%';
+    timePos.textContent = '0:00';
+    timeDur.textContent = '';
+    glow.classList.remove('active');
+    updateSessionArrows(null);
+    requestAnimationFrame(() => widget.classList.add('visible'));
+    return;
+  }
+
+  widget.classList.add('fade-out');
+  setTimeout(() => {
+    widget.classList.remove('visible', 'fade-out');
+    widget.classList.add('empty');
+    if (progressTimer) clearInterval(progressTimer);
+  }, 450);
+}
+
+// ── WebSocket ──────────────────────────────────────────────────────────────────
+let ws = null;
+let wsRetryDelay = 1000;
+let wsRetryTimer = null;
+
+function connectWS() {
+  if (ws) { try { ws.close(); } catch {} }
+
+  ws = new WebSocket(WS_URL);
+
+  ws.onopen = () => {
+    wsRetryDelay = 1000;
+    console.log('[Widget] WebSocket connected');
+  };
+
+  ws.onmessage = (evt) => {
+    try {
+      const msg = JSON.parse(evt.data);
+      if (msg.type === 'media') {
+        currentMedia = msg.data;
+        renderMedia(currentMedia);
+      }
+    } catch {}
+  };
+
+  ws.onclose = () => {
+    console.log(`[Widget] WS closed, retrying in ${wsRetryDelay}ms`);
+    wsRetryTimer = setTimeout(() => {
+      wsRetryDelay = Math.min(wsRetryDelay * 1.5, 10000);
+      connectWS();
+    }, wsRetryDelay);
+  };
+
+  ws.onerror = () => { /* handled in onclose */ };
+}
+
+// ── REST polling fallback (if WS unavailable) ──────────────────────────────────
+async function pollREST() {
+  try {
+    const res = await fetch('/api/now-playing');
+    const json = await res.json();
+    if (json.data) renderMedia(json.data);
+  } catch {}
+}
+
+// ── Desktop IPC & Controls Interactivity ─────────────────────────────────────
+let ipcRenderer = null;
+try {
+  if (typeof require !== 'undefined') {
+    ipcRenderer = require('electron').ipcRenderer;
+  }
+} catch {}
+
+// Playback Control Buttons
+document.getElementById('btnPrev').addEventListener('click', () => sendControl('previous'));
+document.getElementById('btnPlayPause').addEventListener('click', () => sendControl('playpause'));
+document.getElementById('btnNext').addEventListener('click', () => sendControl('next'));
+document.getElementById('btnVolDown').addEventListener('click', () => sendControl('voldown'));
+document.getElementById('btnVolUp').addEventListener('click', () => sendControl('volup'));
+
+function sendControl(action) {
+  if (ipcRenderer) {
+    ipcRenderer.send('control-action', action);
+  }
+}
+
+// Session Arrow buttons
+document.getElementById('btnSessionUp').addEventListener('click', () => {
+  if (ipcRenderer) ipcRenderer.send('cycle-session', 'up');
+});
+document.getElementById('btnSessionDown').addEventListener('click', () => {
+  if (ipcRenderer) ipcRenderer.send('cycle-session', 'down');
+});
+
+// ── Settings Manager, Onboarding & Auto-Updater ──────────────────────────────
+const settingsOverlay   = document.getElementById('settingsOverlay');
+const closeSettingsBtn  = document.getElementById('closeSettingsBtn');
+const cfgVinyl         = document.getElementById('cfgVinyl');
+const cfgColor         = document.getElementById('cfgColor');
+const cfgGlassy        = document.getElementById('cfgGlassy');
+const cfgAlwaysOnTop   = document.getElementById('cfgAlwaysOnTop');
+const cfgLang          = document.getElementById('cfgLang');
+const cfgControlsMode  = document.getElementById('cfgControlsMode');
+const cfgWebServer     = document.getElementById('cfgWebServer');
+const webConfigBox     = document.getElementById('webConfigBox');
+const webUrlInput      = document.getElementById('webUrlInput');
+const btnCopyWebUrl    = document.getElementById('btnCopyWebUrl');
+
+const btnResetSettings = document.getElementById('btnResetSettings');
+const resetConfirmModal= document.getElementById('resetConfirmModal');
+const btnConfirmReset  = document.getElementById('btnConfirmReset');
+const btnCancelReset   = document.getElementById('btnCancelReset');
+
+// Onboarding refs
+const onboardModal     = document.getElementById('onboardModal');
+const onboardLang      = document.getElementById('onboardLang');
+const onboardShortcut  = document.getElementById('onboardShortcut');
+const onboardStartup   = document.getElementById('onboardStartup');
+const btnFinishOnboard = document.getElementById('btnFinishOnboard');
+
+// Update modal refs
+const updateModal      = document.getElementById('updateModal');
+const btnSkipUpdate    = document.getElementById('btnSkipUpdate');
+const btnConfirmUpdate = document.getElementById('btnConfirmUpdate');
+
+function checkFirstRun() {
+  const isFirstRun = localStorage.getItem('cfg_first_run_completed') !== 'true';
+  if (isFirstRun) {
+    widget.classList.add('mode-modal');
+    if (ipcRenderer) ipcRenderer.send('expand-settings-window');
+    setTimeout(() => {
+      onboardModal.classList.add('visible');
+    }, 150);
+  }
+}
+
+btnFinishOnboard.addEventListener('click', () => {
+  const lang = onboardLang.value;
+  cfgLang.value = lang;
+
+  if (ipcRenderer) {
+    if (onboardShortcut.checked) ipcRenderer.send('create-desktop-shortcut');
+    ipcRenderer.send('toggle-auto-start', onboardStartup.checked);
+  }
+
+  localStorage.setItem('cfg_first_run_completed', 'true');
+  onboardModal.classList.remove('visible');
+  widget.classList.remove('mode-modal');
+  applySettings();
+  if (ipcRenderer) ipcRenderer.send('shrink-settings-window');
+});
+
+// ── Gear Button Click ──
+document.getElementById('btnSettingsGear').addEventListener('click', toggleSettings);
+
+// ── Hover Detector across entire widget bounding box (fixes Electron drag region hover bug) ──
+let isWidgetHovered = false;
+document.addEventListener('mousemove', (e) => {
+  const rect = widget.getBoundingClientRect();
+  const inside = (
+    e.clientX >= rect.left &&
+    e.clientX <= rect.right &&
+    e.clientY >= rect.top &&
+    e.clientY <= rect.bottom
+  );
+
+  if (inside !== isWidgetHovered) {
+    isWidgetHovered = inside;
+    widget.classList.toggle('is-hovered', isWidgetHovered);
+  }
+});
+
+// ── Scale Slider (50% - 200%) ────────────────────────────────────────────────
+const cfgScale = document.getElementById('cfgScale');
+const lblScaleVal = document.getElementById('lblScaleVal');
+
+function applyScale(val) {
+  const scalePct = parseInt(val) || 100;
+  lblScaleVal.textContent = `${scalePct}%`;
+  localStorage.setItem('cfg_scale', scalePct);
+
+  if (ipcRenderer) {
+    ipcRenderer.send('set-widget-scale', scalePct);
+  } else {
+    document.documentElement.style.setProperty('--widget-scale', scalePct / 100);
+  }
+}
+
+cfgScale.addEventListener('input', (e) => {
+  applyScale(e.target.value);
+});
+
+// ── Customizable Keybind ──────────────────────────────────────────────────────
+let currentKeybind = localStorage.getItem('cfg_keybind') || 'F5';
+let isCapturingKeybind = false;
+
+const cfgKeybindBtn = document.getElementById('cfgKeybindBtn');
+if (cfgKeybindBtn) cfgKeybindBtn.textContent = currentKeybind;
+
+if (cfgKeybindBtn) {
+  cfgKeybindBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    isCapturingKeybind = true;
+    cfgKeybindBtn.textContent = (cfgLang.value === 'fr') ? 'Appuie sur une touche...' : 'Press key...';
+    cfgKeybindBtn.style.background = 'var(--accent)';
+    cfgKeybindBtn.style.color = '#000';
+  });
+}
+
+window.addEventListener('keydown', (e) => {
+  if (isCapturingKeybind) {
+    e.preventDefault();
+    e.stopPropagation();
+    let keyName = e.key;
+    if (keyName === ' ') keyName = 'Space';
+    if (keyName.length === 1) keyName = keyName.toUpperCase();
+    
+    currentKeybind = keyName;
+    localStorage.setItem('cfg_keybind', currentKeybind);
+    if (cfgKeybindBtn) {
+      cfgKeybindBtn.textContent = currentKeybind;
+      cfgKeybindBtn.style.background = 'rgba(0,0,0,0.5)';
+      cfgKeybindBtn.style.color = '#fff';
+    }
+    isCapturingKeybind = false;
+    return;
+  }
+
+  if (e.key.toUpperCase() === currentKeybind.toUpperCase()) {
+    e.preventDefault();
+    toggleSettings();
+  }
+});
+
+function handleGlobalKeyDown(key) {
+  if (key && key.toUpperCase() === currentKeybind.toUpperCase()) {
+    toggleSettings();
+  }
+}
+
+function loadSavedSettings() {
+  const hasSaved = localStorage.getItem('cfg_initialized') === 'true';
+
+  const savedVinyl       = hasSaved ? (localStorage.getItem('cfg_vinyl') === 'true') : true;
+  const savedColor       = hasSaved ? (localStorage.getItem('cfg_color') === 'true') : false;
+  const savedGlassy      = hasSaved ? (localStorage.getItem('cfg_glassy') === 'true') : true;
+  const savedAlwaysTop   = hasSaved ? (localStorage.getItem('cfg_alwaystop') === 'true') : false;
+  const savedLang        = localStorage.getItem('cfg_lang') || 'en';
+  const savedCtrlMode    = hasSaved ? (localStorage.getItem('cfg_ctrlmode') || 'off') : 'off';
+  const savedWebServer   = hasSaved ? (localStorage.getItem('cfg_webserver') === 'true') : false;
+  const savedScale       = hasSaved ? (localStorage.getItem('cfg_scale') || '100') : '100';
+  const savedKeybind     = localStorage.getItem('cfg_keybind') || 'F5';
+
+  cfgVinyl.checked       = savedVinyl;
+  cfgColor.checked       = savedColor;
+  cfgGlassy.checked      = savedGlassy;
+  cfgAlwaysOnTop.checked = savedAlwaysTop;
+  cfgLang.value          = savedLang;
+  cfgControlsMode.value  = savedCtrlMode;
+  cfgWebServer.checked   = savedWebServer;
+  cfgScale.value         = savedScale;
+  applyScale(savedScale);
+
+  currentKeybind         = savedKeybind;
+  if (cfgKeybindBtn) cfgKeybindBtn.textContent = currentKeybind;
+
+  applySettings();
+  checkFirstRun();
+}
+
+const I18N = {
+  en: {
+    welcomeTitle: '✨ Welcome to Glassic',
+    welcomeSub: 'Set up your preferences for your first launch:',
+    langLabel: '🌐 Choose Language',
+    shortcutLabel: '🖥️ Create Desktop Shortcut',
+    startupLabel: '🚀 Launch on Windows Startup',
+    startBtn: 'Start Glassic 🚀',
+    settingsTitle: '⚙️ Glassic Settings',
+    scaleLabel: '🔍 Widget Size / Taille',
+    keybindLabel: '⌨️ Settings Keybind / Raccourci',
+    vinylLabel: '💿 Spinning Vinyl',
+    colorLabel: '🌈 Cover Colors',
+    glassyLabel: '✨ Glassy Effect',
+    topLabel: '📌 Always on Top',
+    ctrlLabel: '🎮 Playback Controls',
+    ctrlHover: 'On Hover',
+    ctrlAlways: 'Always On',
+    ctrlOff: 'Disabled',
+    webLabel: '🌐 Web / OBS Server (Port 3000)',
+    obsLinkLabel: '🌐 OBS / Browser Widget Link:',
+    copyBtn: 'Copy Link',
+    copiedBtn: 'Copied!',
+    resetBtn: '🔄 Reset Defaults',
+    confirmResetTitle: 'Reset Settings',
+    confirmResetMsg: 'Are you sure you want to reset all settings to default values?',
+    cancelBtn: 'Cancel',
+    confirmBtn: 'Yes, Reset',
+    updateTitle: '🚀 New Update Available!',
+    updateSub: 'A new version of Glassic is ready to install. All your settings and preferences will be preserved!',
+    laterBtn: 'Later',
+    updateBtn: 'Update Now'
+  },
+  fr: {
+    welcomeTitle: '✨ Bienvenue sur Glassic',
+    welcomeSub: 'Configure tes préférences pour le premier lancement :',
+    langLabel: '🌐 Langue / Language',
+    shortcutLabel: '🖥️ Créer un raccourci sur le Bureau',
+    startupLabel: '🚀 Lancer au démarrage de Windows',
+    startBtn: 'Démarrer Glassic 🚀',
+    settingsTitle: '⚙️ Paramètres Glassic',
+    scaleLabel: '🔍 Taille du Widget',
+    keybindLabel: '⌨️ Raccourci Paramètres',
+    vinylLabel: '💿 Vinyle tournant',
+    colorLabel: '🌈 Couleurs de la Cover',
+    glassyLabel: '✨ Effet Glassy',
+    topLabel: '📌 Toujours au premier plan',
+    ctrlLabel: '🎮 Contrôles de lecture',
+    ctrlHover: 'Au survol',
+    ctrlAlways: 'Toujours activé',
+    ctrlOff: 'Désactivé',
+    webLabel: '🌐 Serveur Web / OBS (Port 3000)',
+    obsLinkLabel: '🌐 Lien Widget OBS / Navigateur :',
+    copyBtn: 'Copier le lien',
+    copiedBtn: 'Copié !',
+    resetBtn: '🔄 Réinitialiser',
+    confirmResetTitle: 'Réinitialiser les paramètres',
+    confirmResetMsg: 'Es-tu sûr de vouloir remettre tous les paramètres par défaut ?',
+    cancelBtn: 'Annuler',
+    confirmBtn: 'Oui, réinitialiser',
+    updateTitle: '🚀 Nouvelle mise à jour disponible !',
+    updateSub: 'Une nouvelle version de Glassic est prête. Tous tes paramètres et préférences seront conservés !',
+    laterBtn: 'Plus tard',
+    updateBtn: 'Mettre à jour'
+  }
+};
+
+function updateLanguageUI(lang) {
+  const t = I18N[lang] || I18N.en;
+
+  const elWTitle = document.getElementById('onboardTitle'); if (elWTitle) elWTitle.textContent = t.welcomeTitle;
+  const elWSub = document.getElementById('onboardSub'); if (elWSub) elWSub.textContent = t.welcomeSub;
+  const elWLang = document.getElementById('onboardLangLabel'); if (elWLang) elWLang.textContent = t.langLabel;
+  const elWShort = document.getElementById('onboardShortcutLabel'); if (elWShort) elWShort.textContent = t.shortcutLabel;
+  const elWStart = document.getElementById('onboardStartupLabel'); if (elWStart) elWStart.textContent = t.startupLabel;
+  if (btnFinishOnboard) btnFinishOnboard.textContent = t.startBtn;
+
+  const elSTitle = document.getElementById('settingsTitleText'); if (elSTitle) elSTitle.textContent = t.settingsTitle;
+  const elScale = document.getElementById('lblScale'); if (elScale) elScale.textContent = t.scaleLabel;
+  const elKeybind = document.getElementById('lblKeybind'); if (elKeybind) elKeybind.textContent = t.keybindLabel;
+  const elVinyl = document.getElementById('lblVinyl'); if (elVinyl) elVinyl.textContent = t.vinylLabel;
+  const elColor = document.getElementById('lblColor'); if (elColor) elColor.textContent = t.colorLabel;
+  const elGlassy = document.getElementById('lblGlassy'); if (elGlassy) elGlassy.textContent = t.glassyLabel;
+  const elTop = document.getElementById('lblTop'); if (elTop) elTop.textContent = t.topLabel;
+  const elCtrl = document.getElementById('lblCtrl'); if (elCtrl) elCtrl.textContent = t.ctrlLabel;
+
+  const elHover = document.getElementById('optCtrlHover'); if (elHover) elHover.textContent = t.ctrlHover;
+  const elAlways = document.getElementById('optCtrlAlways'); if (elAlways) elAlways.textContent = t.ctrlAlways;
+  const elOff = document.getElementById('optCtrlOff'); if (elOff) elOff.textContent = t.ctrlOff;
+
+  const elWeb = document.getElementById('lblWeb'); if (elWeb) elWeb.textContent = t.webLabel;
+  const elWebUrl = document.getElementById('webUrlLabel'); if (elWebUrl) elWebUrl.textContent = t.obsLinkLabel;
+  if (btnCopyWebUrl) btnCopyWebUrl.textContent = t.copyBtn;
+  if (btnResetSettings) btnResetSettings.textContent = t.resetBtn;
+
+  const elCTitle = document.getElementById('confirmResetTitle'); if (elCTitle) elCTitle.textContent = t.confirmResetTitle;
+  const elCMsg = document.getElementById('confirmResetMsg'); if (elCMsg) elCMsg.textContent = t.confirmResetMsg;
+  if (btnCancelReset) btnCancelReset.textContent = t.cancelBtn;
+  if (btnConfirmReset) btnConfirmReset.textContent = t.confirmBtn;
+
+  const elUTitle = document.getElementById('updateTitle'); if (elUTitle) elUTitle.textContent = t.updateTitle;
+  const elUMsg = document.getElementById('updateMsgText'); if (elUMsg) elUMsg.textContent = t.updateSub;
+  if (btnSkipUpdate) btnSkipUpdate.textContent = t.laterBtn;
+  if (btnConfirmUpdate) btnConfirmUpdate.textContent = t.updateBtn;
+}
+
+onboardLang.addEventListener('change', () => {
+  cfgLang.value = onboardLang.value;
+  updateLanguageUI(onboardLang.value);
+});
+
+function applySettings() {
+  document.body.classList.toggle('vinyl-mode', cfgVinyl.checked);
+  document.body.classList.toggle('colorful-mode', cfgColor.checked);
+  document.body.classList.toggle('glassy-mode', cfgGlassy.checked);
+
+  // Controls visibility mode class on body
+  document.body.classList.remove('ctrl-hover', 'ctrl-always', 'ctrl-off');
+  document.body.classList.add(`ctrl-${cfgControlsMode.value}`);
+
+  // Update UI text in selected language
+  updateLanguageUI(cfgLang.value);
+  onboardLang.value = cfgLang.value;
+
+  // Web server toggle & box visibility
+  webConfigBox.style.display = cfgWebServer.checked ? 'flex' : 'none';
+  if (ipcRenderer) {
+    ipcRenderer.send('toggle-web-server', cfgWebServer.checked);
+    ipcRenderer.send('set-always-on-top', cfgAlwaysOnTop.checked);
+  }
+
+  localStorage.setItem('cfg_initialized', 'true');
+  localStorage.setItem('cfg_vinyl', cfgVinyl.checked);
+  localStorage.setItem('cfg_color', cfgColor.checked);
+  localStorage.setItem('cfg_glassy', cfgGlassy.checked);
+  localStorage.setItem('cfg_alwaystop', cfgAlwaysOnTop.checked);
+  localStorage.setItem('cfg_lang', cfgLang.value);
+  localStorage.setItem('cfg_ctrlmode', cfgControlsMode.value);
+  localStorage.setItem('cfg_webserver', cfgWebServer.checked);
+}
+
+let latestUpdateUrl = 'https://github.com/Naloulii/Glassic/releases/latest';
+
+// Auto-Updater check listener
+if (ipcRenderer) {
+  ipcRenderer.on('update-status', (_event, info) => {
+    if (info && info.hasUpdate) {
+      if (info.url) latestUpdateUrl = info.url;
+      widget.classList.add('mode-modal');
+      updateModal.classList.add('visible');
+      ipcRenderer.send('expand-settings-window');
+    }
+  });
+  ipcRenderer.send('check-update');
+}
+
+btnSkipUpdate.addEventListener('click', () => {
+  updateModal.classList.remove('visible');
+  widget.classList.remove('mode-modal');
+  if (ipcRenderer) ipcRenderer.send('shrink-settings-window');
+});
+
+btnConfirmUpdate.addEventListener('click', () => {
+  if (ipcRenderer) {
+    ipcRenderer.send('open-external-url', latestUpdateUrl);
+  } else {
+    window.open(latestUpdateUrl, '_blank');
+  }
+  updateModal.classList.remove('visible');
+  widget.classList.remove('mode-modal');
+  if (ipcRenderer) ipcRenderer.send('shrink-settings-window');
+});
+
+btnCopyWebUrl.addEventListener('click', () => {
+  navigator.clipboard.writeText(webUrlInput.value);
+  btnCopyWebUrl.textContent = 'Copied!';
+  setTimeout(() => btnCopyWebUrl.textContent = 'Copy Link', 2000);
+});
+
+function openSettings() {
+  widget.classList.add('mode-modal');
+  settingsOverlay.classList.add('visible');
+  if (ipcRenderer) ipcRenderer.send('expand-settings-window');
+}
+
+function closeSettings() {
+  settingsOverlay.classList.remove('visible');
+  resetConfirmModal.classList.remove('visible');
+  widget.classList.remove('mode-modal');
+  if (ipcRenderer) ipcRenderer.send('shrink-settings-window');
+}
+
+function toggleSettings() {
+  if (settingsOverlay.classList.contains('visible')) {
+    closeSettings();
+  } else {
+    openSettings();
+  }
+}
+
+closeSettingsBtn.addEventListener('click', closeSettings);
+
+// Reset modal logic
+btnResetSettings.addEventListener('click', () => {
+  resetConfirmModal.classList.add('visible');
+});
+
+btnCancelReset.addEventListener('click', () => {
+  resetConfirmModal.classList.remove('visible');
+});
+
+btnConfirmReset.addEventListener('click', () => {
+  // Apply requested defaults: Vinyl ON, Color OFF, Glassy ON, Controls Hover, Web OFF, AlwaysTop OFF, Scale 100%, Keybind F5
+  cfgVinyl.checked       = true;
+  cfgColor.checked       = false;
+  cfgGlassy.checked      = true;
+  cfgAlwaysOnTop.checked = false;
+  cfgControlsMode.value  = 'off';
+  cfgWebServer.checked   = false;
+  cfgScale.value         = '100';
+  applyScale('100');
+  currentKeybind         = 'F5';
+  localStorage.setItem('cfg_keybind', 'F5');
+  if (cfgKeybindBtn) cfgKeybindBtn.textContent = 'F5';
+
+  applySettings();
+  resetConfirmModal.classList.remove('visible');
+});
+
+[cfgVinyl, cfgColor, cfgGlassy, cfgAlwaysOnTop, cfgWebServer].forEach(checkbox => {
+  checkbox.addEventListener('change', applySettings);
+});
+cfgControlsMode.addEventListener('change', applySettings);
+cfgLang.addEventListener('change', applySettings);
+
+loadSavedSettings();
+hideWidget();
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+if (typeof WebSocket !== 'undefined' && !ipcRenderer) {
+  connectWS();
+  setInterval(() => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      pollREST();
+    }
+  }, 3000);
+}
+</script>
+</body>
+</html>
