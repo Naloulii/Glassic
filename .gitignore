@@ -1,4 +1,8 @@
 node_modules/
-dist/
+dist*/
 .electron-data/
 *.log
+
+dist_*/
+*.exe
+*.7z

@@ -1,18 +1,19 @@
 const { app, BrowserWindow, screen, ipcMain, shell } = require('electron');
 const path = require('path');
-const os = require('os');
+const fs = require('fs');
 const { MediaDetector } = require('./src/mediaDetector');
 const { sendControlAction, cycleSession } = require('./src/smtc');
 
-// Supprimer tous les messages et erreurs de cache / GPU / Chromium dans la console
+// Supprimer les messages de debug GPU/Chromium dans la console
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
 app.commandLine.appendSwitch('disable-gpu-program-cache');
 app.commandLine.appendSwitch('disable-disk-cache');
 app.commandLine.appendSwitch('disable-http-cache');
 app.commandLine.appendSwitch('log-level', '3');
 
-// Repertoire userData unique par session pour eviter tout conflit de verrouillage de fichier cache GPU
-app.setPath('userData', path.join(os.tmpdir(), `glassic-udata-${process.pid}`));
+// Repertoire userData stable et persistant — NE PAS utiliser process.pid ici
+// sinon localStorage est vide a chaque lancement
+app.setPath('userData', path.join(app.getPath('appData'), 'Glassic'));
 
 let mainWindow;
 let zoomLevel = 0; // 0 = 100%, 1 = 120%, -1 = 80%, etc.
@@ -43,6 +44,7 @@ function createWindow() {
 
   mainWindow = new BrowserWindow({
     title: 'Glassic',
+    icon: path.join(__dirname, 'icon.png'),
     width: 440,
     height: 126,
     x: 30,
@@ -134,12 +136,30 @@ ipcMain.on('set-always-on-top', (_event, flag) => {
   if (mainWindow) mainWindow.setAlwaysOnTop(isAlwaysOnTop);
 });
 
+ipcMain.on('check-desktop-shortcut', (event) => {
+  const desktopPath = path.join(app.getPath('desktop'), 'Glassic.lnk');
+  event.reply('desktop-shortcut-exists', fs.existsSync(desktopPath));
+});
+
 ipcMain.on('create-desktop-shortcut', () => {
   try {
-    const { exec } = require('child_process');
-    const desktopPath = path.join(app.getPath('home'), 'Desktop', 'Glassic.vbs');
-    const script = `Set WshShell = CreateObject("WScript.Shell")\nWshShell.CurrentDirectory = "${app.getAppPath()}"\nWshShell.Run "cmd.exe /c start Glassic.exe", 0, False`;
-    require('fs').writeFileSync(desktopPath, script);
+    const exePath = app.getPath('exe');
+    const desktop = app.getPath('desktop');
+
+    // Trouver un nom de fichier libre : Glassic.lnk, puis Glassic_1.lnk, Glassic_2.lnk...
+    let shortcutPath = path.join(desktop, 'Glassic.lnk');
+    let counter = 1;
+    while (fs.existsSync(shortcutPath)) {
+      shortcutPath = path.join(desktop, `Glassic_${counter}.lnk`);
+      counter++;
+    }
+
+    shell.writeShortcutLink(shortcutPath, 'create', {
+      target: exePath,
+      icon: exePath,
+      iconIndex: 0,
+      description: 'Glassic - Media Widget'
+    });
   } catch (e) {
     console.log('Error creating desktop shortcut:', e.message);
   }
@@ -147,14 +167,23 @@ ipcMain.on('create-desktop-shortcut', () => {
 
 ipcMain.on('toggle-auto-start', (_event, enable) => {
   try {
-    const startupPath = path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup', 'GlassicStartup.vbs');
+    // Nettoyer toutes les entrees de demarrage existantes
+    const startupDir = path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup');
+    const startupFiles = ['GlassicStartup.vbs', 'Glassic.vbs', 'Glassic.lnk'];
+    for (const f of startupFiles) {
+      const p = path.join(startupDir, f);
+      try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch (_) {}
+    }
+
     if (enable) {
-      const script = `Set WshShell = CreateObject("WScript.Shell")\nWshShell.CurrentDirectory = "D:\\Glassic"\nWshShell.Run "D:\\Glassic\\Glassic.exe", 0, False`;
-      require('fs').writeFileSync(startupPath, script);
-    } else {
-      if (require('fs').existsSync(startupPath)) {
-        require('fs').unlinkSync(startupPath);
-      }
+      const exePath = app.getPath('exe');
+      const startupLnk = path.join(startupDir, 'Glassic.lnk');
+      shell.writeShortcutLink(startupLnk, 'create', {
+        target: exePath,
+        icon: exePath,
+        iconIndex: 0,
+        description: 'Glassic - Media Widget'
+      });
     }
   } catch (e) {
     console.log('Error toggling auto start:', e.message);
@@ -162,7 +191,7 @@ ipcMain.on('toggle-auto-start', (_event, enable) => {
 });
 
 ipcMain.on('check-update', (event) => {
-  const currentVersion = '1.0.0';
+  const currentVersion = '1.1.0';
   const https = require('https');
   const options = {
     hostname: 'api.github.com',
@@ -239,18 +268,32 @@ ipcMain.on('expand-settings-window', () => {
     isSettingsExpanded = true;
     preSettingsBounds = mainWindow.getBounds();
     mainWindow.webContents.setZoomFactor(1.0);
+    // Desactiver alwaysOnTop pendant les settings : comportement fenetre normale
+    mainWindow.setAlwaysOnTop(false);
+    mainWindow.setSkipTaskbar(false);
     const { width: scrW, height: scrH } = screen.getPrimaryDisplay().workAreaSize;
     const targetW = Math.max(820, Math.min(960, Math.round(scrW * 0.5)));
     const targetH = Math.max(560, Math.min(680, Math.round(scrH * 0.6)));
     mainWindow.setBounds({ width: targetW, height: targetH });
     mainWindow.center();
+    mainWindow.focus();
   }
 });
 
 ipcMain.on('shrink-settings-window', () => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     isSettingsExpanded = false;
-    applyWindowScale(currentScalePct);
+    const factor = currentScalePct / 100;
+    mainWindow.webContents.setZoomFactor(factor);
+    const targetW = Math.round(BASE_W * factor);
+    const targetH = Math.round(BASE_H * factor);
+    // Restaurer la position d'origine (avant ouverture des settings)
+    const x = preSettingsBounds ? preSettingsBounds.x : 30;
+    const y = preSettingsBounds ? preSettingsBounds.y : 30;
+    mainWindow.setBounds({ x, y, width: targetW, height: targetH });
+    // Restaurer le comportement alwaysOnTop d'avant les settings
+    mainWindow.setAlwaysOnTop(isAlwaysOnTop);
+    mainWindow.setSkipTaskbar(true);
   }
 });
 

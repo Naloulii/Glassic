@@ -100,7 +100,7 @@
     .widget.visible:not(.mode-modal) {
       transform: scale(var(--widget-scale, 1));
       transform-origin: center center;
-      opacity: 1;
+      opacity: var(--widget-opacity, 1);
     }
 
     /* Glassmorphism background */
@@ -108,7 +108,7 @@
       position: absolute;
       inset: 0;
       border-radius: inherit;
-      background: rgba(12, 12, 14, 0.78);
+      background: rgba(12, 12, 14, 0.65);
       backdrop-filter: blur(var(--blur)) saturate(180%);
       -webkit-backdrop-filter: blur(var(--blur)) saturate(180%);
       border: 1px solid rgba(255,255,255,0.08);
@@ -129,16 +129,16 @@
     }
 
     body.colorful-mode .widget__art-bg {
-      opacity: 0.8;
+      opacity: 0.85;
     }
 
     body.colorful-mode .widget__bg {
-      background: rgba(12, 12, 14, 0.25);
+      background: rgba(12, 12, 14, 0.22);
     }
 
     /* Glassy Mode (Ctrl+G) */
     body.glassy-mode .widget__bg {
-      background: rgba(40, 40, 45, 0.55);
+      background: rgba(40, 40, 45, 0.45);
       backdrop-filter: blur(45px) saturate(220%);
       -webkit-backdrop-filter: blur(45px) saturate(220%);
       border: 1px solid rgba(255, 255, 255, 0.2);
@@ -146,8 +146,8 @@
     }
 
     body.glassy-mode.colorful-mode .widget__bg {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: rgba(20, 20, 25, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.22);
       box-shadow: none !important;
     }
 
@@ -159,6 +159,35 @@
 
     .widget__glow.active { opacity: 0.35; }
     body.colorful-mode .widget__glow.active { opacity: 0; } /* Hide normal glow when colorful mode is active */
+
+    /* Dynamic text colors in colorful mode based on cover brightness */
+    body.colorful-mode .info__title,
+    body.colorful-mode .info__title .scroll-inner {
+      color: var(--cover-title-color, #ffffff);
+    }
+    body.colorful-mode .info__artist,
+    body.colorful-mode .info__artist .scroll-inner {
+      color: var(--cover-artist-color, rgba(255,255,255,0.7));
+    }
+    body.colorful-mode .time-pos,
+    body.colorful-mode .time-dur {
+      color: var(--cover-artist-color, rgba(255,255,255,0.5));
+    }
+    body.colorful-mode:not(.use-source-color) .source-label {
+      color: var(--cover-title-color, rgba(255,255,255,0.9)) !important;
+    }
+    body.colorful-mode:not(.use-source-color) .source-icon {
+      color: var(--cover-title-color, rgba(255,255,255,0.9)) !important;
+    }
+    body.colorful-mode:not(.use-source-color) .source-dot {
+      background: var(--cover-title-color, rgba(255,255,255,0.9)) !important;
+    }
+    body.colorful-mode:not(.use-source-color) .progress-fill {
+      background: var(--cover-title-color, rgba(255,255,255,0.9)) !important;
+    }
+    body.colorful-mode:not(.use-source-color) .eq span {
+      background: var(--cover-title-color, rgba(255,255,255,0.9)) !important;
+    }
 
     /* ── Album Art ── */
     .art-wrapper {
@@ -517,13 +546,12 @@
       z-index: 15;
       -webkit-app-region: no-drag !important;
     }
-    .widget.is-hovered .btn-settings-gear,
-    .widget:hover .btn-settings-gear {
+    .widget.show-gear .btn-settings-gear {
       opacity: 0.85;
       pointer-events: auto;
     }
     .btn-settings-gear:hover {
-      opacity: 1;
+      opacity: 1 !important;
       background: var(--accent);
       color: #000;
       transform: scale(1.15) rotate(45deg);
@@ -889,6 +917,15 @@
           <input type="range" id="cfgScale" min="50" max="200" value="100" step="5" style="width: 100%; cursor: pointer; accent-color: var(--accent);" />
         </label>
 
+        <!-- Widget Opacity Slider (10% - 100%) -->
+        <label class="setting-item" style="grid-column: span 2; display: flex; flex-direction: column; gap: 6px; align-items: stretch;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span id="lblOpacity">🫧 Opacité / Transparence</span>
+            <span id="lblOpacityVal" style="font-weight: 700; color: var(--accent);">100%</span>
+          </div>
+          <input type="range" id="cfgOpacity" min="10" max="100" value="100" step="5" style="width: 100%; cursor: pointer; accent-color: var(--accent);" />
+        </label>
+
         <!-- Settings Keybind / Shortcut Changer -->
         <label class="setting-item" style="grid-column: span 2; display: flex; justify-content: space-between; align-items: center;">
           <span id="lblKeybind">⌨️ Settings Keybind / Raccourci</span>
@@ -911,11 +948,33 @@
           </select>
         </label>
         <label class="setting-item" style="grid-column: span 2;">
+          <span id="lblSourceColor">✨ Couleur d'application</span>
+          <span class="switch">
+            <input type="checkbox" id="cfgSourceColor">
+            <span class="slider"></span>
+          </span>
+        </label>
+        <label class="setting-item" style="grid-column: span 2;">
           <span id="lblWeb">🌐 Web / OBS Server (Port 3000)</span>
           <span class="switch">
             <input type="checkbox" id="cfgWebServer">
             <span class="slider"></span>
           </span>
+        </label>
+
+        <!-- Startup toggle -->
+        <label class="setting-item" style="grid-column: span 2;">
+          <span id="lblStartup">🚀 Launch on Windows Startup</span>
+          <span class="switch">
+            <input type="checkbox" id="cfgAutoStart">
+            <span class="slider"></span>
+          </span>
+        </label>
+
+        <!-- Desktop shortcut button -->
+        <label class="setting-item" style="grid-column: span 2; display: flex; justify-content: space-between; align-items: center;">
+          <span id="lblShortcut">🖥️ Desktop Shortcut</span>
+          <button id="btnCreateShortcut" class="setting-select" style="cursor: pointer; padding: 4px 14px; font-weight: 700;">Create</button>
         </label>
       </div>
 
@@ -1109,18 +1168,67 @@ function setScrolling(el, inner, text) {
 function extractDominantColor(imgEl) {
   try {
     const canvas = document.createElement('canvas');
-    canvas.width = 8; canvas.height = 8;
+    canvas.width = 24; canvas.height = 24;
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(imgEl, 0, 0, 8, 8);
-    const data = ctx.getImageData(0, 0, 8, 8).data;
-    let r = 0, g = 0, b = 0, count = 0;
+    ctx.drawImage(imgEl, 0, 0, 24, 24);
+    const data = ctx.getImageData(0, 0, 24, 24).data;
+
+    let totalR = 0, totalG = 0, totalB = 0, count = 0;
+    // Recherche de la couleur la plus saturée / représentative (ex: tons rosés, chauds, visage/accent)
+    let bestR = 255, bestG = 255, bestB = 255;
+    let maxSaturation = -1;
+
     for (let i = 0; i < data.length; i += 4) {
-      r += data[i]; g += data[i+1]; b += data[i+2]; count++;
+      const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
+      if (a < 128) continue;
+      totalR += r; totalG += g; totalB += b; count++;
+
+      // Saturation approximative : max - min
+      const maxC = Math.max(r, g, b);
+      const minC = Math.min(r, g, b);
+      const sat = maxC - minC;
+
+      // On évite les extrêmes quasi-noirs ou quasi-blancs purs
+      if (maxC > 40 && minC < 240 && sat > maxSaturation) {
+        maxSaturation = sat;
+        bestR = r; bestG = g; bestB = b;
+      }
     }
-    r = Math.round(r / count);
-    g = Math.round(g / count);
-    b = Math.round(b / count);
-    return `rgb(${r},${g},${b})`;
+
+    const avgR = count ? Math.round(totalR / count) : 128;
+    const avgG = count ? Math.round(totalG / count) : 128;
+    const avgB = count ? Math.round(totalB / count) : 128;
+
+    // Si on a trouvé une teinte saturée (rose, rouge, doré, etc.), on l'utilise
+    const targetR = maxSaturation > 15 ? bestR : avgR;
+    const targetG = maxSaturation > 15 ? bestG : avgG;
+    const targetB = maxSaturation > 15 ? bestB : avgB;
+
+    // Luminance moyenne de fond
+    const bgLuminance = (0.2126 * avgR + 0.7152 * avgG + 0.0722 * avgB);
+
+    // Ajustement de la couleur pour le titre :
+    // Si le fond est clair, on assombrit la couleur (ex: rose foncé / bordeaux élégant)
+    // Si le fond est sombre, on éclaircit la couleur (rose poudré / pastel lumineux)
+    let titleR, titleG, titleB;
+    if (bgLuminance > 135) {
+      // Teinte sombre et riche basée sur la couleur de la cover
+      const darken = 0.42;
+      titleR = Math.round(targetR * darken);
+      titleG = Math.round(targetG * darken);
+      titleB = Math.round(targetB * darken);
+    } else {
+      // Teinte claire et lumineuse basée sur la couleur de la cover
+      titleR = Math.round(targetR + (255 - targetR) * 0.65);
+      titleG = Math.round(targetG + (255 - targetG) * 0.65);
+      titleB = Math.round(targetB + (255 - targetB) * 0.65);
+    }
+
+    return {
+      rgb: `rgb(${avgR},${avgG},${avgB})`,
+      titleColor: `rgb(${titleR}, ${titleG}, ${titleB})`,
+      artistColor: `rgba(${titleR}, ${titleG}, ${titleB}, 0.78)`
+    };
   } catch { return null; }
 }
 
@@ -1194,17 +1302,21 @@ function renderMedia(media) {
   const prevSrc = albumArt.src;
   if (media.thumbnail && media.thumbnail !== prevSrc) {
     albumArt.onload = () => {
-      // Extract color and update glow
-      const color = extractDominantColor(albumArt);
-      if (color) {
-        glow.style.background = `radial-gradient(ellipse at center, ${color}, transparent)`;
+      // Extract color and update glow & text color
+      const colorData = extractDominantColor(albumArt);
+      if (colorData) {
+        glow.style.background = `radial-gradient(ellipse at center, ${colorData.rgb}, transparent)`;
         glow.classList.add('active');
+        document.documentElement.style.setProperty('--cover-title-color', colorData.titleColor);
+        document.documentElement.style.setProperty('--cover-artist-color', colorData.artistColor);
       }
       document.getElementById('artBg').style.backgroundImage = `url("${media.thumbnail}")`;
     };
     albumArt.onerror = () => {
       albumArt.src = makeDefaultArt(meta.color);
       document.getElementById('artBg').style.backgroundImage = 'none';
+      document.documentElement.style.removeProperty('--cover-title-color');
+      document.documentElement.style.removeProperty('--cover-artist-color');
     };
     albumArt.crossOrigin = 'anonymous';
     albumArt.src = media.thumbnail;
@@ -1212,6 +1324,8 @@ function renderMedia(media) {
     albumArt.src = makeDefaultArt(meta.color);
     glow.classList.remove('active');
     document.getElementById('artBg').style.backgroundImage = 'none';
+    document.documentElement.style.removeProperty('--cover-title-color');
+    document.documentElement.style.removeProperty('--cover-artist-color');
   }
 
   // Vinyl rotation
@@ -1294,6 +1408,8 @@ function hideWidget() {
     timePos.textContent = '0:00';
     timeDur.textContent = '';
     glow.classList.remove('active');
+    document.documentElement.style.removeProperty('--cover-title-color');
+    document.documentElement.style.removeProperty('--cover-artist-color');
     updateSessionArrows(null);
     requestAnimationFrame(() => widget.classList.add('visible'));
     return;
@@ -1390,6 +1506,7 @@ const cfgGlassy        = document.getElementById('cfgGlassy');
 const cfgAlwaysOnTop   = document.getElementById('cfgAlwaysOnTop');
 const cfgLang          = document.getElementById('cfgLang');
 const cfgControlsMode  = document.getElementById('cfgControlsMode');
+const cfgSourceColor   = document.getElementById('cfgSourceColor');
 const cfgWebServer     = document.getElementById('cfgWebServer');
 const webConfigBox     = document.getElementById('webConfigBox');
 const webUrlInput      = document.getElementById('webUrlInput');
@@ -1411,6 +1528,34 @@ const btnFinishOnboard = document.getElementById('btnFinishOnboard');
 const updateModal      = document.getElementById('updateModal');
 const btnSkipUpdate    = document.getElementById('btnSkipUpdate');
 const btnConfirmUpdate = document.getElementById('btnConfirmUpdate');
+
+// ── Auto-Start toggle (settings panel) ──
+const cfgAutoStart     = document.getElementById('cfgAutoStart');
+const btnCreateShortcut= document.getElementById('btnCreateShortcut');
+
+cfgAutoStart.addEventListener('change', () => {
+  const enabled = cfgAutoStart.checked;
+  localStorage.setItem('cfg_autostart', enabled);
+  if (ipcRenderer) ipcRenderer.send('toggle-auto-start', enabled);
+});
+
+btnCreateShortcut.addEventListener('click', () => {
+  if (!ipcRenderer) return;
+  // Demande au main si un raccourci existe deja
+  ipcRenderer.send('check-desktop-shortcut');
+});
+
+if (ipcRenderer) {
+  ipcRenderer.on('desktop-shortcut-exists', (_e, exists) => {
+    if (exists) {
+      const ok = confirm('Un raccourci Glassic existe déjà sur le bureau.\nVoulez-vous quand même en créer un nouveau ?');
+      if (!ok) return;
+    }
+    ipcRenderer.send('create-desktop-shortcut');
+    btnCreateShortcut.textContent = 'Created!';
+    setTimeout(() => { btnCreateShortcut.textContent = 'Create'; }, 2000);
+  });
+}
 
 function checkFirstRun() {
   const isFirstRun = localStorage.getItem('cfg_first_run_completed') !== 'true';
@@ -1479,6 +1624,23 @@ cfgScale.addEventListener('input', (e) => {
   applyScale(e.target.value);
 });
 
+// ── Opacity Slider (10% - 100%) ──────────────────────────────────────────────
+const cfgOpacity = document.getElementById('cfgOpacity');
+const lblOpacityVal = document.getElementById('lblOpacityVal');
+
+function applyOpacity(val) {
+  const opacityPct = Math.max(10, Math.min(100, parseInt(val) || 100));
+  if (lblOpacityVal) lblOpacityVal.textContent = `${opacityPct}%`;
+  localStorage.setItem('cfg_opacity', opacityPct);
+  document.documentElement.style.setProperty('--widget-opacity', opacityPct / 100);
+}
+
+if (cfgOpacity) {
+  cfgOpacity.addEventListener('input', (e) => {
+    applyOpacity(e.target.value);
+  });
+}
+
 // ── Customizable Keybind ──────────────────────────────────────────────────────
 let currentKeybind = localStorage.getItem('cfg_keybind') || 'F5';
 let isCapturingKeybind = false;
@@ -1538,7 +1700,9 @@ function loadSavedSettings() {
   const savedCtrlMode    = hasSaved ? (localStorage.getItem('cfg_ctrlmode') || 'off') : 'off';
   const savedWebServer   = hasSaved ? (localStorage.getItem('cfg_webserver') === 'true') : false;
   const savedScale       = hasSaved ? (localStorage.getItem('cfg_scale') || '100') : '100';
+  const savedOpacity     = hasSaved ? (localStorage.getItem('cfg_opacity') || '100') : '100';
   const savedKeybind     = localStorage.getItem('cfg_keybind') || 'F5';
+  const savedSourceColor = hasSaved ? (localStorage.getItem('cfg_sourcecolor') === 'true') : false;
 
   cfgVinyl.checked       = savedVinyl;
   cfgColor.checked       = savedColor;
@@ -1546,12 +1710,20 @@ function loadSavedSettings() {
   cfgAlwaysOnTop.checked = savedAlwaysTop;
   cfgLang.value          = savedLang;
   cfgControlsMode.value  = savedCtrlMode;
+  if (cfgSourceColor) cfgSourceColor.checked = savedSourceColor;
   cfgWebServer.checked   = savedWebServer;
   cfgScale.value         = savedScale;
   applyScale(savedScale);
 
+  if (cfgOpacity) cfgOpacity.value = savedOpacity;
+  applyOpacity(savedOpacity);
+
   currentKeybind         = savedKeybind;
   if (cfgKeybindBtn) cfgKeybindBtn.textContent = currentKeybind;
+
+  // Charger l'etat du demarrage automatique
+  const savedAutoStart = localStorage.getItem('cfg_autostart') === 'true';
+  if (cfgAutoStart) cfgAutoStart.checked = savedAutoStart;
 
   applySettings();
   checkFirstRun();
@@ -1567,6 +1739,7 @@ const I18N = {
     startBtn: 'Start Glassic 🚀',
     settingsTitle: '⚙️ Glassic Settings',
     scaleLabel: '🔍 Widget Size / Taille',
+    opacityLabel: '🫧 Widget Opacity / Transparence',
     keybindLabel: '⌨️ Settings Keybind / Raccourci',
     vinylLabel: '💿 Spinning Vinyl',
     colorLabel: '🌈 Cover Colors',
@@ -1577,6 +1750,10 @@ const I18N = {
     ctrlAlways: 'Always On',
     ctrlOff: 'Disabled',
     webLabel: '🌐 Web / OBS Server (Port 3000)',
+    sourceColorLabel: '✨ App Accent Color',
+    startupSettingLabel: '🚀 Launch on Windows Startup',
+    shortcutSettingLabel: '🖥️ Desktop Shortcut',
+    createShortcutBtn: 'Create',
     obsLinkLabel: '🌐 OBS / Browser Widget Link:',
     copyBtn: 'Copy Link',
     copiedBtn: 'Copied!',
@@ -1599,6 +1776,7 @@ const I18N = {
     startBtn: 'Démarrer Glassic 🚀',
     settingsTitle: '⚙️ Paramètres Glassic',
     scaleLabel: '🔍 Taille du Widget',
+    opacityLabel: '🫧 Transparence du Widget',
     keybindLabel: '⌨️ Raccourci Paramètres',
     vinylLabel: '💿 Vinyle tournant',
     colorLabel: '🌈 Couleurs de la Cover',
@@ -1608,7 +1786,11 @@ const I18N = {
     ctrlHover: 'Au survol',
     ctrlAlways: 'Toujours activé',
     ctrlOff: 'Désactivé',
+    sourceColorLabel: '✨ Couleur d\'application',
     webLabel: '🌐 Serveur Web / OBS (Port 3000)',
+    startupSettingLabel: '🚀 Lancer au démarrage de Windows',
+    shortcutSettingLabel: '🖥️ Raccourci Bureau',
+    createShortcutBtn: 'Créer',
     obsLinkLabel: '🌐 Lien Widget OBS / Navigateur :',
     copyBtn: 'Copier le lien',
     copiedBtn: 'Copié !',
@@ -1636,6 +1818,7 @@ function updateLanguageUI(lang) {
 
   const elSTitle = document.getElementById('settingsTitleText'); if (elSTitle) elSTitle.textContent = t.settingsTitle;
   const elScale = document.getElementById('lblScale'); if (elScale) elScale.textContent = t.scaleLabel;
+  const elOpacity = document.getElementById('lblOpacity'); if (elOpacity) elOpacity.textContent = t.opacityLabel;
   const elKeybind = document.getElementById('lblKeybind'); if (elKeybind) elKeybind.textContent = t.keybindLabel;
   const elVinyl = document.getElementById('lblVinyl'); if (elVinyl) elVinyl.textContent = t.vinylLabel;
   const elColor = document.getElementById('lblColor'); if (elColor) elColor.textContent = t.colorLabel;
@@ -1647,7 +1830,11 @@ function updateLanguageUI(lang) {
   const elAlways = document.getElementById('optCtrlAlways'); if (elAlways) elAlways.textContent = t.ctrlAlways;
   const elOff = document.getElementById('optCtrlOff'); if (elOff) elOff.textContent = t.ctrlOff;
 
+  const elSrcCol = document.getElementById('lblSourceColor'); if (elSrcCol) elSrcCol.textContent = t.sourceColorLabel;
   const elWeb = document.getElementById('lblWeb'); if (elWeb) elWeb.textContent = t.webLabel;
+  const elStartupSetting = document.getElementById('lblStartup'); if (elStartupSetting) elStartupSetting.textContent = t.startupSettingLabel;
+  const elShortcutSetting = document.getElementById('lblShortcut'); if (elShortcutSetting) elShortcutSetting.textContent = t.shortcutSettingLabel;
+  if (btnCreateShortcut) btnCreateShortcut.textContent = t.createShortcutBtn;
   const elWebUrl = document.getElementById('webUrlLabel'); if (elWebUrl) elWebUrl.textContent = t.obsLinkLabel;
   if (btnCopyWebUrl) btnCopyWebUrl.textContent = t.copyBtn;
   if (btnResetSettings) btnResetSettings.textContent = t.resetBtn;
@@ -1672,6 +1859,7 @@ function applySettings() {
   document.body.classList.toggle('vinyl-mode', cfgVinyl.checked);
   document.body.classList.toggle('colorful-mode', cfgColor.checked);
   document.body.classList.toggle('glassy-mode', cfgGlassy.checked);
+  document.body.classList.toggle('use-source-color', cfgSourceColor ? cfgSourceColor.checked : false);
 
   // Controls visibility mode class on body
   document.body.classList.remove('ctrl-hover', 'ctrl-always', 'ctrl-off');
@@ -1695,7 +1883,9 @@ function applySettings() {
   localStorage.setItem('cfg_alwaystop', cfgAlwaysOnTop.checked);
   localStorage.setItem('cfg_lang', cfgLang.value);
   localStorage.setItem('cfg_ctrlmode', cfgControlsMode.value);
+  localStorage.setItem('cfg_sourcecolor', cfgSourceColor ? cfgSourceColor.checked : false);
   localStorage.setItem('cfg_webserver', cfgWebServer.checked);
+  if (currentMedia) renderMedia(currentMedia);
 }
 
 let latestUpdateUrl = 'https://github.com/Naloulii/Glassic/releases/latest';
@@ -1705,6 +1895,12 @@ if (ipcRenderer) {
   ipcRenderer.on('update-status', (_event, info) => {
     if (info && info.hasUpdate) {
       if (info.url) latestUpdateUrl = info.url;
+      const elMsg = document.getElementById('updateMsgText');
+      if (elMsg && info.version) {
+        elMsg.textContent = (cfgLang.value === 'fr')
+          ? `Une nouvelle version de Glassic (${info.version}) est disponible. Vos réglages seront conservés !`
+          : `A new version of Glassic (${info.version}) is ready to install. All your settings will be preserved!`;
+      }
       widget.classList.add('mode-modal');
       updateModal.classList.add('visible');
       ipcRenderer.send('expand-settings-window');
@@ -1775,9 +1971,12 @@ btnConfirmReset.addEventListener('click', () => {
   cfgGlassy.checked      = true;
   cfgAlwaysOnTop.checked = false;
   cfgControlsMode.value  = 'off';
+  if (cfgSourceColor) cfgSourceColor.checked = false;
   cfgWebServer.checked   = false;
   cfgScale.value         = '100';
   applyScale('100');
+  if (cfgOpacity) cfgOpacity.value = '100';
+  applyOpacity('100');
   currentKeybind         = 'F5';
   localStorage.setItem('cfg_keybind', 'F5');
   if (cfgKeybindBtn) cfgKeybindBtn.textContent = 'F5';
@@ -1786,11 +1985,31 @@ btnConfirmReset.addEventListener('click', () => {
   resetConfirmModal.classList.remove('visible');
 });
 
-[cfgVinyl, cfgColor, cfgGlassy, cfgAlwaysOnTop, cfgWebServer].forEach(checkbox => {
+[cfgVinyl, cfgColor, cfgGlassy, cfgAlwaysOnTop, cfgWebServer, cfgSourceColor].filter(Boolean).forEach(checkbox => {
   checkbox.addEventListener('change', applySettings);
 });
 cfgControlsMode.addEventListener('change', applySettings);
 cfgLang.addEventListener('change', applySettings);
+
+// Settings gear button auto-hide (disappears after 5 seconds of no hover/movement)
+let gearHideTimeout = null;
+
+function resetGearTimer() {
+  widget.classList.add('show-gear');
+  if (gearHideTimeout) clearTimeout(gearHideTimeout);
+  gearHideTimeout = setTimeout(() => {
+    widget.classList.remove('show-gear');
+  }, 5000);
+}
+
+widget.addEventListener('mouseenter', resetGearTimer);
+widget.addEventListener('mousemove', resetGearTimer);
+widget.addEventListener('mouseleave', () => {
+  if (gearHideTimeout) clearTimeout(gearHideTimeout);
+  gearHideTimeout = setTimeout(() => {
+    widget.classList.remove('show-gear');
+  }, 5000);
+});
 
 loadSavedSettings();
 hideWidget();

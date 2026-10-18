@@ -1,6 +1,6 @@
 {
   "name": "glassic",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Glassic — Now Playing Desktop Widget (Spotify, YouTube, TikTok, Local)",
   "main": "desktop.js",
   "scripts": {
@@ -14,19 +14,22 @@
     "productName": "Glassic",
     "artifactName": "Glassic.exe",
     "directories": {
-      "output": "dist"
+      "output": "dist_clean"
     },
     "win": {
       "target": "portable",
-      "icon": "icon.png"
+      "icon": "icon.png",
+      "signExecutable": false
     },
     "files": [
       "desktop.js",
       "server.js",
       "package.json",
+      "icon.png",
       "public/**/*",
       "scripts/**/*",
-      "src/**/*"
+      "src/**/*",
+      "!smtc-reader/**/*"
     ],
     "asar": false
   },

@@ -1,2 +1,0 @@
-D:\music-widget\scripts\smtc-reader.pdb
-D:\music-widget\scripts\smtc-reader.exe
