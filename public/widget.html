@@ -4,14 +4,24 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Glassic</title>
+  <script>
+    if (typeof require === 'undefined') {
+      document.documentElement.classList.add('web-mode');
+      document.addEventListener('DOMContentLoaded', () => {
+        if (document.body) document.body.classList.add('web-mode');
+      });
+    }
+  </script>
   <style>
     /* ── Reset ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     /* ── Root variables ── */
     :root {
-      --accent: #1DB954;
-      --radius: 18px;
+      --app-accent: #9A22E2;
+      --app-accent-glow: rgba(154, 34, 226, 0.45);
+      --accent: #9A22E2;
+      --radius: 20px;
       --blur: 24px;
       --transition: 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     }
@@ -46,7 +56,7 @@
       transition: background 0.2s ease;
     }
     ::-webkit-scrollbar-thumb:hover {
-      background: var(--accent);
+      background: var(--app-accent);
     }
 
     /* ── Widget card ── */
@@ -59,8 +69,10 @@
       gap: 16px;
       padding: 14px 22px 14px 18px;
       border-radius: var(--radius);
-      width: 100%;
-      height: 100%;
+      width: 440px;
+      height: 126px;
+      max-width: 440px;
+      max-height: 126px;
       overflow: hidden;
       cursor: default;
       transform: translateY(0);
@@ -72,6 +84,7 @@
     /* Expand widget container when a modal is active and hide background elements */
     .widget.mode-modal {
       max-width: none !important;
+      max-height: none !important;
       width: 100vw !important;
       height: 100vh !important;
       border-radius: 0 !important;
@@ -97,7 +110,46 @@
       -webkit-app-region: no-drag !important;
     }
 
-    /* Web / OBS Browser Source mode: never show modals or gear */
+    /* Web / OBS Browser Source mode: maintain exact desktop card dimensions and rounded corners */
+    html.web-mode,
+    body.web-mode {
+      background: transparent !important;
+      overflow: hidden !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100vw;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
+    }
+    .web-mode .widget,
+    body.web-mode .widget {
+      width: 440px !important;
+      height: 126px !important;
+      min-width: 440px !important;
+      min-height: 126px !important;
+      max-width: 440px !important;
+      max-height: 126px !important;
+      border-radius: var(--radius) !important;
+      overflow: hidden !important;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+      margin: auto;
+    }
+    .web-mode .widget.mode-modal,
+    body.web-mode .widget.mode-modal {
+      width: 440px !important;
+      height: 126px !important;
+      max-width: 440px !important;
+      max-height: 126px !important;
+      border-radius: var(--radius) !important;
+      overflow: hidden !important;
+    }
+    .web-mode .btn-settings-gear,
+    .web-mode .settings-overlay,
+    .web-mode .onboard-modal,
+    .web-mode .update-modal,
+    .web-mode .confirm-modal,
     body.web-mode .btn-settings-gear,
     body.web-mode .settings-overlay,
     body.web-mode .onboard-modal,
@@ -129,6 +181,7 @@
     .widget__art-bg {
       position: absolute;
       inset: 0;
+      border-radius: inherit;
       background-size: cover;
       background-position: center;
       opacity: 0;
@@ -461,7 +514,7 @@
       line-height: 1;
     }
     .ctrl-btn:hover {
-      color: var(--accent);
+      color: var(--app-accent);
       transform: scale(1.18);
     }
     .ctrl-btn:active { transform: scale(0.92); }
@@ -528,8 +581,8 @@
       transition: background 0.2s, transform 0.2s;
     }
     .arrow-btn:hover {
-      background: var(--accent);
-      color: #000;
+      background: var(--app-accent);
+      color: #fff;
       transform: scale(1.15);
     }
 
@@ -561,8 +614,8 @@
     }
     .btn-settings-gear:hover {
       opacity: 1 !important;
-      background: var(--accent);
-      color: #000;
+      background: var(--app-accent);
+      color: #fff;
       transform: scale(1.15) rotate(45deg);
     }
     .widget.mode-modal .btn-settings-gear {
@@ -602,7 +655,7 @@
       border-radius: 50%;
     }
     input:checked + .slider {
-      background-color: var(--accent);
+      background-color: var(--app-accent);
     }
     input:checked + .slider:before {
       transform: translateX(16px);
@@ -653,7 +706,7 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      color: var(--accent);
+      color: var(--app-accent);
       border-bottom: 1px solid rgba(255,255,255,0.1);
       padding-bottom: 8px;
     }
@@ -711,7 +764,7 @@
     .web-url-input {
       background: rgba(0,0,0,0.6);
       border: 1px solid rgba(255,255,255,0.2);
-      color: var(--accent);
+      color: var(--app-accent);
       padding: 4px 8px;
       border-radius: 6px;
       font-family: monospace;
@@ -719,8 +772,8 @@
       width: 100%;
     }
     .copy-btn {
-      background: var(--accent);
-      color: #000;
+      background: var(--app-accent);
+      color: #fff;
       font-weight: 700;
       border: none;
       padding: 4px 10px;
@@ -835,7 +888,7 @@
     .onboard-title {
       font-size: 20px;
       font-weight: 800;
-      color: var(--accent);
+      color: var(--app-accent);
       display: flex;
       align-items: center;
       gap: 10px;
@@ -846,8 +899,8 @@
       line-height: 1.5;
     }
     .btn-action {
-      background: var(--accent);
-      color: #000;
+      background: var(--app-accent);
+      color: #fff;
       font-weight: 700;
       border: none;
       padding: 10px 22px;
@@ -921,18 +974,18 @@
         <label class="setting-item" style="grid-column: span 2; display: flex; flex-direction: column; gap: 6px; align-items: stretch;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <span id="lblScale">🔍 Widget Size / Taille</span>
-            <span id="lblScaleVal" style="font-weight: 700; color: var(--accent);">100%</span>
+            <span id="lblScaleVal" style="font-weight: 700; color: var(--app-accent);">100%</span>
           </div>
-          <input type="range" id="cfgScale" min="50" max="200" value="100" step="5" style="width: 100%; cursor: pointer; accent-color: var(--accent);" />
+          <input type="range" id="cfgScale" min="50" max="200" value="100" step="5" style="width: 100%; cursor: pointer; accent-color: var(--app-accent);" />
         </label>
 
         <!-- Widget Opacity Slider (10% - 100%) -->
         <label class="setting-item" style="grid-column: span 2; display: flex; flex-direction: column; gap: 6px; align-items: stretch;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <span id="lblOpacity">🫧 Opacité / Transparence</span>
-            <span id="lblOpacityVal" style="font-weight: 700; color: var(--accent);">100%</span>
+            <span id="lblOpacityVal" style="font-weight: 700; color: var(--app-accent);">100%</span>
           </div>
-          <input type="range" id="cfgOpacity" min="10" max="100" value="100" step="5" style="width: 100%; cursor: pointer; accent-color: var(--accent);" />
+          <input type="range" id="cfgOpacity" min="10" max="100" value="100" step="5" style="width: 100%; cursor: pointer; accent-color: var(--app-accent);" />
         </label>
 
         <!-- Settings Keybind / Shortcut Changer -->
@@ -989,7 +1042,7 @@
 
       <!-- Web Server / OBS Configurator -->
       <div class="web-config-box" id="webConfigBox" style="display: none;">
-        <div style="font-weight:700; color: var(--accent);" id="webUrlLabel">🌐 OBS / Browser Widget Link:</div>
+        <div style="font-weight:700; color: var(--app-accent);" id="webUrlLabel">🌐 OBS / Browser Widget Link:</div>
         <input type="text" class="web-url-input" id="webUrlInput" readonly value="http://localhost:3000/widget.html" />
         <button class="copy-btn" id="btnCopyWebUrl">Copy Link</button>
       </div>
@@ -1036,7 +1089,7 @@
     <div class="onboard-subtitle" id="updateMsgText">A new version of Glassic (v1.1.0) is ready to install. All your settings and preferences will be preserved!</div>
     <div class="confirm-actions" style="margin-top: auto;">
       <button class="confirm-btn cancel" id="btnSkipUpdate">Later</button>
-      <button class="confirm-btn danger" id="btnConfirmUpdate" style="background: var(--accent); color: #000;">Update Now</button>
+      <button class="confirm-btn danger" id="btnConfirmUpdate" style="background: var(--app-accent); color: #fff;">Update Now</button>
     </div>
   </div>
 
@@ -1155,7 +1208,7 @@ function formatTime(secs) {
 }
 
 function setAccentColor(color) {
-  document.documentElement.style.setProperty('--accent', color || '#1DB954');
+  document.documentElement.style.setProperty('--accent', color || '#9A22E2');
 }
 
 function setScrolling(el, inner, text) {
@@ -1286,20 +1339,23 @@ function renderMedia(media) {
   const source = media.source || 'unknown';
   const meta = media.sourceMeta || { icon: 'music', color: '#888', label: source };
 
-  // Accent color from source
-  setAccentColor(meta.color);
+  const useAppColor = cfgSourceColor ? cfgSourceColor.checked : false;
+  const activeColor = useAppColor ? '#9A22E2' : (meta.color || '#9A22E2');
+
+  // Accent color from source or app
+  setAccentColor(activeColor);
 
   // Source indicator
-  sourceDot.style.background = meta.color;
+  sourceDot.style.background = activeColor;
   sourceDot.className = `source-dot${isPlaying ? '' : ' paused'}`;
   sourceLabel.textContent = meta.label;
-  sourceLabel.style.color = meta.color;
+  sourceLabel.style.color = activeColor;
 
   // Source icon
   const iconPath = ICONS[meta.icon] || ICONS.music;
   sourceIcon.innerHTML = iconPath;
   sourceIcon.className = `source-icon icon-${meta.icon}`;
-  sourceIcon.style.color = meta.color;
+  sourceIcon.style.color = activeColor;
 
   // Title & Artist (with scrolling for long text)
   setTimeout(() => {
@@ -1671,8 +1727,8 @@ if (cfgKeybindBtn) {
     e.preventDefault();
     isCapturingKeybind = true;
     cfgKeybindBtn.textContent = (cfgLang.value === 'fr') ? 'Appuie sur une touche...' : 'Press key...';
-    cfgKeybindBtn.style.background = 'var(--accent)';
-    cfgKeybindBtn.style.color = '#000';
+    cfgKeybindBtn.style.background = 'var(--app-accent)';
+    cfgKeybindBtn.style.color = '#fff';
   });
 }
 
@@ -2066,6 +2122,7 @@ function applyRemoteSettings(cfg) {
   if (cfg.scale !== undefined) {
     applyScale(cfg.scale);
   }
+  if (currentMedia) renderMedia(currentMedia);
 }
 
 loadSavedSettings();

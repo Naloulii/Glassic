@@ -15,6 +15,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.get('/', (_req, res) => {
+  res.redirect('/widget.html');
+});
+
 // ─── Media Detector (Windows SMTC native exe — no credentials needed) ─────────
 const detector = new MediaDetector({
   pollMs: parseInt(process.env.SMTC_POLL_MS || '1500'),
