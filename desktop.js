@@ -212,7 +212,7 @@ ipcMain.on('sync-web-settings', (_event, settings) => {
 });
 
 ipcMain.on('check-update', (event) => {
-  const currentVersion = '1.1.0';
+  const currentVersion = '1.2.0';
   const https = require('https');
   const options = {
     hostname: 'api.github.com',

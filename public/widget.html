@@ -180,14 +180,17 @@
     /* Colorful mode overlay */
     .widget__art-bg {
       position: absolute;
-      inset: 0;
+      inset: -35px;
       border-radius: inherit;
       background-size: cover;
       background-position: center;
       opacity: 0;
       transition: background-image 1s ease, opacity 0.6s ease;
-      filter: none;
+      filter: blur(42px) saturate(200%);
+      transform: scale(1.15);
       z-index: -1;
+      pointer-events: none;
+      will-change: transform, filter;
     }
 
     body.colorful-mode .widget__art-bg {
@@ -199,6 +202,10 @@
     }
 
     /* Glassy Mode (Ctrl+G) */
+    body.glassy-mode .widget__art-bg {
+      filter: blur(48px) saturate(220%);
+    }
+
     body.glassy-mode .widget__bg {
       background: rgba(40, 40, 45, 0.45);
       backdrop-filter: blur(45px) saturate(220%);
@@ -1086,7 +1093,7 @@
   <!-- Update Available Modal -->
   <div class="update-modal" id="updateModal">
     <div class="onboard-title" id="updateTitle">🚀 New Update Available!</div>
-    <div class="onboard-subtitle" id="updateMsgText">A new version of Glassic (v1.1.0) is ready to install. All your settings and preferences will be preserved!</div>
+    <div class="onboard-subtitle" id="updateMsgText">A new version of Glassic (v1.2.0) is ready to install. All your settings and preferences will be preserved!</div>
     <div class="confirm-actions" style="margin-top: auto;">
       <button class="confirm-btn cancel" id="btnSkipUpdate">Later</button>
       <button class="confirm-btn danger" id="btnConfirmUpdate" style="background: var(--app-accent); color: #fff;">Update Now</button>

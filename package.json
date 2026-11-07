@@ -1,6 +1,6 @@
 {
   "name": "glassic",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Glassic — Now Playing Desktop Widget (Spotify, YouTube, TikTok, Local)",
   "main": "desktop.js",
   "scripts": {
