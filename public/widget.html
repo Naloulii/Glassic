@@ -97,6 +97,15 @@
       -webkit-app-region: no-drag !important;
     }
 
+    /* Web / OBS Browser Source mode: never show modals or gear */
+    body.web-mode .btn-settings-gear,
+    body.web-mode .settings-overlay,
+    body.web-mode .onboard-modal,
+    body.web-mode .update-modal,
+    body.web-mode .confirm-modal {
+      display: none !important;
+    }
+
     .widget.visible:not(.mode-modal) {
       transform: scale(var(--widget-scale, 1));
       transform-origin: center center;
@@ -1301,6 +1310,9 @@ function renderMedia(media) {
   // Album art
   const prevSrc = albumArt.src;
   if (media.thumbnail && media.thumbnail !== prevSrc) {
+    if (prevSrc && prevSrc.startsWith('blob:')) {
+      try { URL.revokeObjectURL(prevSrc); } catch (_) {}
+    }
     albumArt.onload = () => {
       // Extract color and update glow & text color
       const colorData = extractDominantColor(albumArt);
@@ -1321,6 +1333,9 @@ function renderMedia(media) {
     albumArt.crossOrigin = 'anonymous';
     albumArt.src = media.thumbnail;
   } else if (!media.thumbnail) {
+    if (prevSrc && prevSrc.startsWith('blob:')) {
+      try { URL.revokeObjectURL(prevSrc); } catch (_) {}
+    }
     albumArt.src = makeDefaultArt(meta.color);
     glow.classList.remove('active');
     document.getElementById('artBg').style.backgroundImage = 'none';
@@ -1444,6 +1459,8 @@ function connectWS() {
       if (msg.type === 'media') {
         currentMedia = msg.data;
         renderMedia(currentMedia);
+      } else if (msg.type === 'config' && !ipcRenderer) {
+        applyRemoteSettings(msg.data);
       }
     } catch {}
   };
@@ -1558,10 +1575,11 @@ if (ipcRenderer) {
 }
 
 function checkFirstRun() {
+  if (!ipcRenderer) return; // Mode OBS / Navigateur web : ne jamais afficher le wizard d'onboarding
   const isFirstRun = localStorage.getItem('cfg_first_run_completed') !== 'true';
   if (isFirstRun) {
     widget.classList.add('mode-modal');
-    if (ipcRenderer) ipcRenderer.send('expand-settings-window');
+    ipcRenderer.send('expand-settings-window');
     setTimeout(() => {
       onboardModal.classList.add('visible');
     }, 150);
@@ -1874,6 +1892,14 @@ function applySettings() {
   if (ipcRenderer) {
     ipcRenderer.send('toggle-web-server', cfgWebServer.checked);
     ipcRenderer.send('set-always-on-top', cfgAlwaysOnTop.checked);
+    ipcRenderer.send('sync-web-settings', {
+      vinyl: cfgVinyl.checked,
+      color: cfgColor.checked,
+      glassy: cfgGlassy.checked,
+      sourceColor: cfgSourceColor ? cfgSourceColor.checked : false,
+      opacity: cfgOpacity ? cfgOpacity.value : 100,
+      scale: cfgScale ? cfgScale.value : 100
+    });
   }
 
   localStorage.setItem('cfg_initialized', 'true');
@@ -1942,6 +1968,11 @@ function closeSettings() {
   settingsOverlay.classList.remove('visible');
   resetConfirmModal.classList.remove('visible');
   widget.classList.remove('mode-modal');
+  if (currentMedia) {
+    renderMedia(currentMedia);
+  } else {
+    hideWidget();
+  }
   if (ipcRenderer) ipcRenderer.send('shrink-settings-window');
 }
 
@@ -2011,8 +2042,44 @@ widget.addEventListener('mouseleave', () => {
   }, 5000);
 });
 
+function applyRemoteSettings(cfg) {
+  if (!cfg || typeof cfg !== 'object') return;
+  if (typeof cfg.vinyl === 'boolean') {
+    document.body.classList.toggle('vinyl-mode', cfg.vinyl);
+    if (cfgVinyl) cfgVinyl.checked = cfg.vinyl;
+  }
+  if (typeof cfg.color === 'boolean') {
+    document.body.classList.toggle('colorful-mode', cfg.color);
+    if (cfgColor) cfgColor.checked = cfg.color;
+  }
+  if (typeof cfg.glassy === 'boolean') {
+    document.body.classList.toggle('glassy-mode', cfg.glassy);
+    if (cfgGlassy) cfgGlassy.checked = cfg.glassy;
+  }
+  if (typeof cfg.sourceColor === 'boolean') {
+    document.body.classList.toggle('use-source-color', cfg.sourceColor);
+    if (cfgSourceColor) cfgSourceColor.checked = cfg.sourceColor;
+  }
+  if (cfg.opacity !== undefined) {
+    applyOpacity(cfg.opacity);
+  }
+  if (cfg.scale !== undefined) {
+    applyScale(cfg.scale);
+  }
+}
+
 loadSavedSettings();
 hideWidget();
+
+// ── Web Mode & OBS Sync Init ──────────────────────────────────────────────────
+if (!ipcRenderer) {
+  document.body.classList.add('web-mode');
+  // Sync desktop settings from server
+  fetch('/api/config')
+    .then(r => r.json())
+    .then(cfg => applyRemoteSettings(cfg))
+    .catch(() => {});
+}
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 if (typeof WebSocket !== 'undefined' && !ipcRenderer) {

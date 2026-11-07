@@ -24,30 +24,53 @@ const detector = new MediaDetector({
 const wss = new WebSocketServer({ server, path: '/ws' });
 const clients = new Set();
 
+let currentSettings = {
+  vinyl: true,
+  color: false,
+  glassy: true,
+  sourceColor: false,
+  opacity: 100,
+  scale: 100
+};
+
 wss.on('connection', (ws) => {
   clients.add(ws);
 
-  // Send current state immediately on connect
+  // Send current state and settings immediately on connect
   ws.send(JSON.stringify({ type: 'media', data: detector.currentMedia }));
+  ws.send(JSON.stringify({ type: 'config', data: currentSettings }));
 
   ws.on('close', () => clients.delete(ws));
   ws.on('error', () => clients.delete(ws));
 });
 
-function broadcast(media) {
-  const msg = JSON.stringify({ type: 'media', data: media });
+function broadcast(msgObj) {
+  const msg = JSON.stringify(msgObj);
   clients.forEach((ws) => {
     if (ws.readyState === ws.OPEN) ws.send(msg);
   });
 }
 
-detector.on((media) => broadcast(media));
+detector.on((media) => broadcast({ type: 'media', data: media }));
 
 // ─── API Routes ────────────────────────────────────────────────────────────────
 
 /** Current media (REST polling fallback for widget) */
 app.get('/api/now-playing', (_req, res) => {
   res.json({ data: detector.currentMedia, timestamp: Date.now() });
+});
+
+/** Configuration endpoint to sync settings with OBS / web widget */
+app.get('/api/config', (_req, res) => {
+  res.json(currentSettings);
+});
+
+app.post('/api/config', (req, res) => {
+  if (req.body && typeof req.body === 'object') {
+    currentSettings = { ...currentSettings, ...req.body };
+    broadcast({ type: 'config', data: currentSettings });
+  }
+  res.json({ status: 'ok', config: currentSettings });
 });
 
 /** Health check */
@@ -147,3 +170,12 @@ server.listen(PORT, () => {
   console.log('  ───────────────────────────────────────────');
   console.log('');
 });
+
+module.exports = {
+  updateSettings: (newSettings) => {
+    if (newSettings && typeof newSettings === 'object') {
+      currentSettings = { ...currentSettings, ...newSettings };
+      broadcast({ type: 'config', data: currentSettings });
+    }
+  }
+};

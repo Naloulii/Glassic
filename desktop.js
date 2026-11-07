@@ -19,6 +19,21 @@ let mainWindow;
 let zoomLevel = 0; // 0 = 100%, 1 = 120%, -1 = 80%, etc.
 let isAlwaysOnTop = false;
 let webServerActive = false;
+let webServerInstance = null;
+
+// Nettoyer automatiquement les anciens scripts .vbs du dossier Démarrage Windows
+function cleanupLegacyStartupFiles() {
+  try {
+    const startupDir = path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup');
+    const legacyFiles = ['MusicWidget.vbs', 'GlassicStartup.vbs', 'Glassic.vbs'];
+    for (const f of legacyFiles) {
+      const p = path.join(startupDir, f);
+      if (fs.existsSync(p)) {
+        try { fs.unlinkSync(p); } catch (_) {}
+      }
+    }
+  } catch (_) {}
+}
 
 // Media detector tournant en local pour l'application Desktop (sans Node server par défaut)
 const detector = new MediaDetector({ pollMs: 1500 });
@@ -32,7 +47,7 @@ function toggleWebServer(enable) {
   if (enable && !webServerActive) {
     webServerActive = true;
     try {
-      require('./server.js');
+      webServerInstance = require('./server.js');
     } catch (e) {
       console.log('Serveur web déjà démarré ou erreur:', e.message);
     }
@@ -169,7 +184,7 @@ ipcMain.on('toggle-auto-start', (_event, enable) => {
   try {
     // Nettoyer toutes les entrees de demarrage existantes
     const startupDir = path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup');
-    const startupFiles = ['GlassicStartup.vbs', 'Glassic.vbs', 'Glassic.lnk'];
+    const startupFiles = ['GlassicStartup.vbs', 'Glassic.vbs', 'MusicWidget.vbs', 'Glassic.lnk'];
     for (const f of startupFiles) {
       const p = path.join(startupDir, f);
       try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch (_) {}
@@ -187,6 +202,12 @@ ipcMain.on('toggle-auto-start', (_event, enable) => {
     }
   } catch (e) {
     console.log('Error toggling auto start:', e.message);
+  }
+});
+
+ipcMain.on('sync-web-settings', (_event, settings) => {
+  if (webServerInstance && typeof webServerInstance.updateSettings === 'function') {
+    webServerInstance.updateSettings(settings);
   }
 });
 
@@ -265,8 +286,10 @@ ipcMain.on('set-widget-scale', (_event, scalePct) => {
 
 ipcMain.on('expand-settings-window', () => {
   if (mainWindow && !mainWindow.isDestroyed()) {
+    if (!isSettingsExpanded) {
+      preSettingsBounds = mainWindow.getBounds();
+    }
     isSettingsExpanded = true;
-    preSettingsBounds = mainWindow.getBounds();
     mainWindow.webContents.setZoomFactor(1.0);
     // Desactiver alwaysOnTop pendant les settings : comportement fenetre normale
     mainWindow.setAlwaysOnTop(false);
@@ -287,17 +310,24 @@ ipcMain.on('shrink-settings-window', () => {
     mainWindow.webContents.setZoomFactor(factor);
     const targetW = Math.round(BASE_W * factor);
     const targetH = Math.round(BASE_H * factor);
+    const { height: scrH } = screen.getPrimaryDisplay().workAreaSize;
+    const defaultY = Math.max(0, scrH - 156);
     // Restaurer la position d'origine (avant ouverture des settings)
     const x = preSettingsBounds ? preSettingsBounds.x : 30;
-    const y = preSettingsBounds ? preSettingsBounds.y : 30;
+    const y = preSettingsBounds ? preSettingsBounds.y : defaultY;
     mainWindow.setBounds({ x, y, width: targetW, height: targetH });
     // Restaurer le comportement alwaysOnTop d'avant les settings
     mainWindow.setAlwaysOnTop(isAlwaysOnTop);
-    mainWindow.setSkipTaskbar(true);
+    mainWindow.setSkipTaskbar(false);
+    mainWindow.show();
+    mainWindow.focus();
   }
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  cleanupLegacyStartupFiles();
+  createWindow();
+});
 
 app.on('window-all-closed', function () {
   detector.stop();
