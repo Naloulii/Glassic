@@ -6,3 +6,6 @@ dist*/
 dist_*/
 *.exe
 *.7z
+target/
+icon.ico
+
